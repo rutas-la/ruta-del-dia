@@ -286,6 +286,13 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
   <!-- ══════════ VERIFICACIÓN ══════════ -->
   <div class="card" id="verifyCard" style="display:none">
     <h2>Verificá las direcciones antes de calcular</h2>
+    <div class="row" style="margin:0 0 6px">
+      <div style="max-width:200px">
+        <label>Código de área local</label>
+        <input type="tel" id="areaPref" value="11">
+      </div>
+    </div>
+    <div class="hint" style="margin:0 0 8px">Si un teléfono viene corto (sin código de área), se le antepone este automáticamente.</div>
     <div id="verList"></div>
     <button class="btn btn-main" id="btnConfirm">✓ Todo bien, calcular ruta</button>
     <div class="hint">Debajo de cada dirección aparece el lugar exacto que se encontró — tocá ✏️ para corregirla o ✗ para sacarla. En el campo 📲 poné el teléfono del destinatario tal como viene en la etiqueta (con 0, 15 o guiones da igual): se convierte solo al formato de WhatsApp.</div>
@@ -760,14 +767,19 @@ function normPhone(digits){
   if(!digits) return null;
   const cc = callCodes[$("country").value] || "";
   if(!cc) return digits;
-  if(digits.startsWith(cc)){
+  if(digits.startsWith(cc) && digits.length>=10){
     if(cc==="54" && !digits.startsWith("549")) return "549"+digits.slice(2);
     return digits;
   }
   let d = digits.replace(/^0+/,"");
+  if(cc==="54") d = d.replace(/^15(?=\d{6,8}$)/,"");          // "15 2233-4455" → "22334455"
+  const pref = (($("areaPref")||{}).value||"").replace(/\D/g,"");
+  if(d.length<=8 && pref) d = pref + d;                        // número corto → se agrega el área
   if(cc==="54"){ d = d.replace(/^(\d{2,4})15(?=\d{6,8}$)/,"$1"); return "549"+d; }
   return cc+d;
 }
+
+const areaDefaults = {ar:"11", br:"11", mx:"55", cl:"9", uy:"9", pe:"9", py:"9", ec:"9", bo:"7", ve:"4"};
 
 function splitPhone(line){
   const parts = line.split("|");
@@ -1035,6 +1047,7 @@ const defaultCity = {
 };
 $("country").addEventListener("change", ()=>{
   $("city").value = defaultCity[$("country").value] || "";
+  $("areaPref").value = areaDefaults[$("country").value] || "";
 });
 
 /* ─────────── PWA: service worker ─────────── */
