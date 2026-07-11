@@ -118,6 +118,14 @@
   #errors h3{font-size:13px;color:var(--err);margin-bottom:6px}
   #errors li{font-size:13px;margin-left:18px;color:var(--ink-soft)}
 
+  .ver{display:flex;gap:10px;padding:11px 2px;border-bottom:1px dashed var(--line);align-items:flex-start}
+  .ver:last-child{border-bottom:none}
+  .ver .found{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.4}
+  .ver .warn{color:#a86500;font-size:12px;font-weight:700;margin-top:3px}
+  .ver.bad{background:#fdf1f1;border-radius:10px;padding:11px 8px;margin:4px 0}
+  .vbtn{border:1.5px solid var(--line);background:#fafbfc;border-radius:8px;padding:7px 10px;font-size:14px;cursor:pointer;flex:none}
+  .act{display:flex;gap:6px;flex:none}
+
   #results{display:none}
   .stats{display:flex;gap:10px;margin-bottom:14px}
   .stat{flex:1;background:var(--ink);color:#fff;border-radius:var(--radius);padding:13px 10px;text-align:center}
@@ -148,6 +156,8 @@
   }
   .stop.done .addr{text-decoration:line-through;color:var(--ink-soft)}
   .stop.done .badge{background:var(--ok);border-color:var(--ok);color:#fff}
+  .okbtn{background:var(--ok) !important;border-color:var(--ok) !important;color:#fff !important}
+  .stop.done .okbtn{background:#fafbfc !important;border-color:var(--line) !important;color:var(--ink-soft) !important}
 
   .links{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .glink{
@@ -273,6 +283,14 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
     <div id="errors"><h3>⚠ No se pudieron ubicar estas direcciones (se omiten):</h3><ul id="errList"></ul></div>
   </div>
 
+  <!-- ══════════ VERIFICACIÓN ══════════ -->
+  <div class="card" id="verifyCard" style="display:none">
+    <h2>Verificá las direcciones antes de calcular</h2>
+    <div id="verList"></div>
+    <button class="btn btn-main" id="btnConfirm">✓ Todo bien, calcular ruta</button>
+    <div class="hint">Debajo de cada dirección aparece el lugar exacto que se encontró. Tocá ✏️ para corregir una o ✗ para sacarla del reparto.</div>
+  </div>
+
   <!-- ══════════ RESULTADOS ══════════ -->
   <div id="results">
     <div class="stats">
@@ -379,10 +397,36 @@ function appendAddress(line){
 
 function stopMic(){
   listening = false;
+  commitBuf();
   if(rec) try{ rec.onend=null; rec.stop(); }catch(e){}
   $("btnMic").classList.remove("listening");
   $("btnMic").textContent = "🎤";
   $("micStatus").innerHTML = 'Tocá el micrófono y dictá una dirección por vez. Decí <b>"listo"</b> para terminar.';
+}
+
+/* — armado de dirección por fragmentos — */
+let buf = "", bufTimer = null;
+const hasDigit = s => /\d/.test(s);
+const streetStart = s => /^(av|avenida|calle|pasaje|pje|diagonal|diag|boulevard|bv|bvd|ruta|camino|autopista)\b/i.test(s.replace(/\./g,""));
+
+function commitBuf(){
+  if(bufTimer){ clearTimeout(bufTimer); bufTimer=null; }
+  const line = buf.replace(/\s{2,}/g," ").trim();
+  buf = "";
+  if(line.length > 3 && appendAddress(line))
+    $("micStatus").innerHTML = `✓ Agregada: <b>${line.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
+}
+
+function feedFragment(clean){
+  if(buf === "") buf = clean;
+  else if(/^\d/.test(clean)) buf += " " + clean;                    // altura → se pega
+  else if(!hasDigit(buf)) buf += " " + clean;                        // dirección sin número aún → sigue armándose
+  else if(!hasDigit(clean) && clean.split(" ").length<=3 && !streetStart(clean))
+    buf += " " + clean;                                              // barrio/localidad → se pega
+  else { commitBuf(); buf = clean; }                                 // empezó otra calle → cerrar la anterior
+  if(bufTimer) clearTimeout(bufTimer);
+  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, 4000);          // 4 s de silencio con dirección completa → cerrar
+  if(buf) $("micStatus").innerHTML = `🎙 Armando: <b>${buf.replace(/</g,"&lt;")}</b>…`;
 }
 
 function startSession(){
@@ -390,7 +434,7 @@ function startSession(){
   rec = new SR();
   const sel = $("country");
   rec.lang = sel.options[sel.selectedIndex].dataset.lang || "es-AR";
-  rec.continuous = false;          // una dirección por sesión: evita duplicados de Android
+  rec.continuous = false;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
   gotResult = false;
@@ -399,24 +443,22 @@ function startSession(){
     const res = e.results[e.results.length-1];
     const t = res[0].transcript;
     if(!res.isFinal){
-      $("micStatus").innerHTML = '<span id="micInterim">'+t.replace(/</g,"&lt;")+'…</span>';
+      $("micStatus").innerHTML = '<span id="micInterim">'+(buf? buf+" · " : "")+t.replace(/</g,"&lt;")+'…</span>';
       return;
     }
-    if(gotResult) return;          // solo el primer final de cada sesión
+    if(gotResult) return;
     gotResult = true;
     const clean = cleanDictation(t);
     const low = clean.toLowerCase();
     if(/^(listo|terminar|terminé|basta|parar)\.?$/.test(low)){ stopMic(); return; }
     if(/^(borrar|borrá)( la)?( última)?\.?$/.test(low)){
-      const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n");
-      lastHeard=""; 
-      $("micStatus").innerHTML = '<b>Última línea borrada.</b> Seguí dictando…';
+      if(buf){ buf=""; if(bufTimer){clearTimeout(bufTimer);bufTimer=null;} }
+      else { const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n"); lastHeard=""; }
+      $("micStatus").innerHTML = '<b>Borrado.</b> Seguí dictando…';
       return;
     }
-    if(clean.length > 3){
-      if(appendAddress(clean))
-        $("micStatus").innerHTML = `✓ Agregada: <b>${clean.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
-    }
+    if(/^(siguiente|nueva|próxima|proxima)\.?$/.test(low)){ commitBuf(); return; }
+    if(clean.length > 1) feedFragment(clean);
   };
 
   rec.onerror = ev=>{
@@ -426,7 +468,6 @@ function startSession(){
     }
   };
 
-  // al terminar cada frase, arranca una sesión nueva tras una pequeña pausa
   rec.onend = ()=>{ if(listening) setTimeout(startSession, 300); };
 
   try{ rec.start(); }catch(e){ setTimeout(()=>{ if(listening) startSession(); }, 500); }
@@ -452,7 +493,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 async function geocode(addr, city){
   // coordenadas directas: "@lat,lon"
   const m = addr.match(/^@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
-  if(m) return {lat:+m[1], lon:+m[2], label:"Mi ubicación"};
+  if(m) return {lat:+m[1], lon:+m[2], label:"Mi ubicación", display:"Coordenadas GPS actuales"};
 
   let q = addr;
   const low = addr.toLowerCase();
@@ -466,7 +507,7 @@ async function geocode(addr, city){
   if(!res.ok) throw new Error("HTTP "+res.status);
   const data = await res.json();
   if(!data.length) return null;
-  return {lat:+data[0].lat, lon:+data[0].lon, label:addr};
+  return {lat:+data[0].lat, lon:+data[0].lon, label:addr, display:data[0].display_name||""};
 }
 
 /* ─────────── OSRM: matriz + TSP (servicio /trip) ─────────── */
@@ -555,17 +596,120 @@ $("btnGo").addEventListener("click", async ()=>{
     alert("No se pudo ubicar el punto de partida. Revisá la dirección.");
     btn.disabled=false; $("progress").style.display="none"; return;
   }
-  if(failed.length){
-    $("errors").style.display="block";
-    failed.forEach(f=>{ const li=document.createElement("li"); li.textContent=f; $("errList").appendChild(li); });
-  }
-  if(points.length<2){
-    alert("Ninguna dirección de entrega pudo ubicarse. Probá con calle + altura + barrio.");
-    btn.disabled=false; $("progress").style.display="none"; return;
+
+  btn.disabled=false;
+  $("progress").style.display="none";
+  $("pfill").style.width="0%";
+  gPoints = points; gFailed = failed; editIdx = -1;
+  renderVerify();
+  $("verifyCard").style.display="block";
+  $("verifyCard").scrollIntoView({behavior:"smooth"});
+});
+
+/* ─────────── verificación de direcciones ─────────── */
+let gPoints=[], gFailed=[], editIdx=-1;
+
+function shortDisplay(d){
+  return d ? d.split(",").slice(0,4).join(",") : "sin detalle";
+}
+
+function renderVerify(){
+  const L=$("verList"); L.innerHTML="";
+  const start = gPoints[0] && gPoints[0].isStart ? gPoints[0] : null;
+
+  gPoints.forEach((p,idx)=>{
+    const row=document.createElement("div"); row.className="ver";
+    if(editIdx===idx){
+      row.innerHTML=`
+        <div class="badge ${p.isStart?"start":""}" style="width:26px;height:26px;font-size:12px">${p.isStart?"S":idx}</div>
+        <div style="flex:1;min-width:0">
+          <input type="text" id="editInput" value="${escapeHtml(p.original+(p.phone?" | +"+p.phone:""))}">
+        </div>
+        <div class="act"><button class="vbtn" data-save="${idx}">🔎</button></div>`;
+    }else{
+      const far = start && !p.isStart && hav(start,p)>60000;
+      row.innerHTML=`
+        <div class="badge ${p.isStart?"start":""}" style="width:26px;height:26px;font-size:12px">${p.isStart?"S":idx}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px">${escapeHtml(p.original)}${p.phone?" 📲":""}</div>
+          <div class="found">📍 ${escapeHtml(shortDisplay(p.display))}</div>
+          ${far?'<div class="warn">⚠ Queda a más de 60 km de la salida — revisala</div>':""}
+        </div>
+        <div class="act">
+          <button class="vbtn" data-edit="${idx}">✏️</button>
+          ${p.isStart?"":`<button class="vbtn" data-del="${idx}">✗</button>`}
+        </div>`;
+    }
+    L.appendChild(row);
+  });
+
+  gFailed.forEach((raw,fi)=>{
+    const row=document.createElement("div"); row.className="ver bad";
+    row.innerHTML=`
+      <div class="badge" style="width:26px;height:26px;font-size:12px;background:var(--err);border-color:var(--err);color:#fff">!</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;color:var(--err);font-weight:700;margin-bottom:6px">No se encontró — corregila y buscala de nuevo:</div>
+        <input type="text" id="failInput${fi}" value="${escapeHtml(raw)}">
+      </div>
+      <div class="act">
+        <button class="vbtn" data-retry="${fi}">🔎</button>
+        <button class="vbtn" data-drop="${fi}">✗</button>
+      </div>`;
+    L.appendChild(row);
+  });
+}
+
+async function lookupSingle(line){
+  const [addrP, phone] = splitPhone(line);
+  const p = await geocode(addrP, $("city").value.trim());
+  return p ? {...p, original:addrP, phone} : null;
+}
+
+$("verList").addEventListener("click", async e=>{
+  const b = e.target.closest("button"); if(!b) return;
+
+  if(b.dataset.edit!==undefined){ editIdx=+b.dataset.edit; renderVerify(); return; }
+  if(b.dataset.del!==undefined){ gPoints.splice(+b.dataset.del,1); editIdx=-1; renderVerify(); return; }
+  if(b.dataset.drop!==undefined){ gFailed.splice(+b.dataset.drop,1); renderVerify(); return; }
+
+  if(b.dataset.save!==undefined){
+    const idx=+b.dataset.save;
+    const val=$("editInput").value.trim();
+    if(!val) return;
+    b.textContent="…"; b.disabled=true;
+    try{
+      const np = await lookupSingle(val);
+      if(np){ gPoints[idx] = {...np, isStart:gPoints[idx].isStart}; editIdx=-1; }
+      else alert("Tampoco se encontró así. Probá con calle + altura + barrio.");
+    }catch(err){ alert("Error buscando la dirección. Probá de nuevo."); }
+    renderVerify(); return;
   }
 
-  // 2) optimizar
-  $("pfill").style.width="80%";
+  if(b.dataset.retry!==undefined){
+    const fi=+b.dataset.retry;
+    const val=$("failInput"+fi).value.trim();
+    if(!val) return;
+    b.textContent="…"; b.disabled=true;
+    try{
+      const np = await lookupSingle(val);
+      if(np){ gPoints.push({...np, isStart:false}); gFailed.splice(fi,1); }
+      else alert("Tampoco se encontró así. Probá con calle + altura + barrio.");
+    }catch(err){ alert("Error buscando la dirección. Probá de nuevo."); }
+    renderVerify(); return;
+  }
+});
+
+$("btnConfirm").addEventListener("click", ()=>{
+  if(gPoints.length<2){ alert("Necesitás al menos una entrega ubicada además de la salida."); return; }
+  if(gFailed.length && !confirm(`Hay ${gFailed.length} dirección(es) sin ubicar que quedarán FUERA de la ruta. ¿Continuar igual?`)) return;
+  $("verifyCard").style.display="none";
+  optimizeAndRender(gPoints.slice());
+});
+
+/* ─────────── optimización ─────────── */
+async function optimizeAndRender(points){
+  $("progress").style.display="block";
+  $("pfill").style.width="60%";
   $("ptext").textContent="Calculando la mejor ruta…";
   const roundtrip=$("roundtrip").checked;
   let result, engine;
@@ -593,17 +737,31 @@ $("btnGo").addEventListener("click", async ()=>{
   $("pfill").style.width="100%";
   await sleep(250);
   renderResults(points, result, roundtrip, engine);
-  btn.disabled=false;
   $("progress").style.display="none";
   $("pfill").style.width="0%";
-});
+}
 
 /* ─────────── render ─────────── */
+const callCodes = {ar:"54",bo:"591",br:"55",cl:"56",co:"57",cr:"506",ec:"593",sv:"503",gt:"502",hn:"504",mx:"52",ni:"505",pa:"507",py:"595",pe:"51",do:"1",uy:"598",ve:"58"};
+
+function normPhone(digits){
+  if(!digits) return null;
+  const cc = callCodes[$("country").value] || "";
+  if(!cc) return digits;
+  if(digits.startsWith(cc)){
+    if(cc==="54" && !digits.startsWith("549")) return "549"+digits.slice(2);
+    return digits;
+  }
+  let d = digits.replace(/^0+/,"");
+  if(cc==="54"){ d = d.replace(/^(\d{2,4})15(?=\d{6,8}$)/,"$1"); return "549"+d; }
+  return cc+d;
+}
+
 function splitPhone(line){
   const parts = line.split("|");
   if(parts.length>1){
-    const tel = parts.slice(1).join("").replace(/[^\d+]/g,"");
-    return [parts[0].trim(), tel.length>=8 ? tel.replace(/^\+/,"") : null];
+    const tel = parts.slice(1).join("").replace(/[^\d+]/g,"").replace(/^\+/,"");
+    return [parts[0].trim(), tel.length>=6 ? normPhone(tel) : null];
   }
   return [line.trim(), null];
 }
@@ -660,16 +818,21 @@ function renderResults(points, result, roundtrip, engine){
         <div class="meta">${meta}</div>
       </div>
       ${i>0?`<div style="display:flex;flex-direction:column;gap:6px;flex:none">
+        <a class="nav okbtn" href="#">✓ Entregado</a>
         <a class="nav" href="${navUrl}" target="_blank">Ir ➜</a>
         <a class="nav wa" href="#">${p.phone?"📲 Avisar ✓":"📲 Avisar"}</a>
       </div>`:""}`;
     if(i>0){
-      div.addEventListener("click", ()=>{
+      const markDone = ()=>{
         div.classList.toggle("done"); div.classList.remove("near");
-        if(watchId!==null) resyncETAs();
+        div.querySelector(".okbtn").textContent = div.classList.contains("done") ? "↩ Deshacer" : "✓ Entregado";
+        resyncETAs();
+        updateCounter();
         refreshLive();
-      });
-      div.querySelector(".nav").addEventListener("click", ev=>ev.stopPropagation());
+      };
+      div.addEventListener("click", markDone);
+      div.querySelector(".okbtn").addEventListener("click", ev=>{ ev.preventDefault(); ev.stopPropagation(); markDone(); });
+      div.querySelector(".nav:not(.okbtn):not(.wa)").addEventListener("click", ev=>ev.stopPropagation());
       div.querySelector(".wa").addEventListener("click", ev=>{
         ev.preventDefault(); ev.stopPropagation();
         const msg = `¡Hola! 🚚 Soy tu repartidor. Tu paquete está en camino a ${p.original}. Ventana de entrega estimada: entre las ${p.etaFrom} y las ${p.etaTo} hs. ¡Cualquier cosa me respondés por acá!`;
@@ -739,6 +902,13 @@ function nextPending(){
   const kids=$("stopList").children;
   for(let i=1;i<kids.length;i++) if(!kids[i].classList.contains("done")) return i;
   return -1;
+}
+
+function updateCounter(){
+  const kids=$("stopList").children;
+  let done=0, total=0;
+  for(let i=1;i<kids.length;i++){ total++; if(kids[i].classList.contains("done")) done++; }
+  $("stStops").textContent = done+"/"+total;
 }
 
 function resyncETAs(){
@@ -833,6 +1003,7 @@ $("btnCopy").addEventListener("click", ()=>{
 $("btnReset").addEventListener("click", ()=>{
   stopLive();
   $("results").style.display="none";
+  $("verifyCard").style.display="none";
   window.scrollTo({top:0,behavior:"smooth"});
 });
 
