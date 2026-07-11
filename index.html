@@ -685,7 +685,7 @@ $("verList").addEventListener("click", async e=>{
     b.textContent="…"; b.disabled=true;
     try{
       const np = await lookupSingle(val);
-      if(np){ gPoints[idx] = {...np, isStart:gPoints[idx].isStart}; editIdx=-1; }
+      if(np){ gPoints[idx] = {...np, isStart:gPoints[idx].isStart, phoneRaw:gPoints[idx].phoneRaw, phone:np.phone||gPoints[idx].phone}; editIdx=-1; }
       else alert("Tampoco se encontró así. Probá con calle + altura + barrio.");
     }catch(err){ alert("Error buscando la dirección. Probá de nuevo."); }
     renderVerify(); return;
@@ -828,6 +828,7 @@ function renderResults(points, result, roundtrip, engine){
       <div class="info">
         <div class="addr">${escapeHtml(p.original)}</div>
         <div class="meta">${meta}</div>
+        ${i>0 && p.phone ? `<div class="meta" style="color:var(--ok)">📲 +${p.phone}</div>` : ""}
       </div>
       ${i>0?`<div style="display:flex;flex-direction:column;gap:6px;flex:none">
         <a class="nav okbtn" href="#">✓ Entregado</a>
@@ -848,8 +849,11 @@ function renderResults(points, result, roundtrip, engine){
       div.querySelector(".wa").addEventListener("click", ev=>{
         ev.preventDefault(); ev.stopPropagation();
         const msg = `¡Hola! 🚚 Soy tu repartidor. Tu paquete está en camino a ${p.original}. Ventana de entrega estimada: entre las ${p.etaFrom} y las ${p.etaTo} hs. ¡Cualquier cosa me respondés por acá!`;
-        const base = p.phone ? `https://wa.me/${p.phone}?text=` : "https://wa.me/?text=";
-        window.open(base+encodeURIComponent(msg), "_blank");
+        const url = p.phone
+          ? `https://api.whatsapp.com/send?phone=${p.phone}&text=${encodeURIComponent(msg)}`
+          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        const w = window.open(url, "_blank");
+        if(!w) window.location.href = url;
       });
     }
     list.appendChild(div);
