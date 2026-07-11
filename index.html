@@ -347,6 +347,7 @@ $("btnGeo").addEventListener("click", ()=>{
 /* ─────────── dictado por voz ─────────── */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, listening = false;
+let lastHeard = "", lastHeardAt = 0, gotResult = false;
 
 function cleanDictation(t){
   let s = t.trim();
@@ -361,61 +362,61 @@ function cleanDictation(t){
 }
 
 function appendAddress(line){
+  // anti-duplicados: Android a veces entrega el mismo resultado dos veces
+  const norm = line.toLowerCase().replace(/[^a-z0-9áéíóúñ]/g,"");
+  const now = Date.now();
+  if(norm === lastHeard && now - lastHeardAt < 6000) return false;
   const ta = $("addrs");
-  ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,"")+"\n" : "") + line;
+  const lines = ta.value.trim() ? ta.value.trim().split("\n") : [];
+  const lastLine = lines.length ? lines[lines.length-1].toLowerCase().replace(/[^a-z0-9áéíóúñ]/g,"") : "";
+  if(norm === lastLine) return false;
+  lastHeard = norm; lastHeardAt = now;
+  lines.push(line);
+  ta.value = lines.join("\n");
   ta.scrollTop = ta.scrollHeight;
+  return true;
 }
 
 function stopMic(){
   listening = false;
-  if(rec) try{ rec.stop(); }catch(e){}
+  if(rec) try{ rec.onend=null; rec.stop(); }catch(e){}
   $("btnMic").classList.remove("listening");
   $("btnMic").textContent = "🎤";
   $("micStatus").innerHTML = 'Tocá el micrófono y dictá una dirección por vez. Decí <b>"listo"</b> para terminar.';
 }
 
-$("btnMic").addEventListener("click", ()=>{
-  if(!SR){
-    alert("Este navegador no soporta dictado por voz.\n\nAlternativa: tocá el cuadro de direcciones y usá el micrófono del teclado del celular (Gboard) — funciona igual de bien.");
-    return;
-  }
-  if(listening){ stopMic(); return; }
-
+function startSession(){
+  if(!listening) return;
   rec = new SR();
   const sel = $("country");
   rec.lang = sel.options[sel.selectedIndex].dataset.lang || "es-AR";
-  rec.continuous = true;
+  rec.continuous = false;          // una dirección por sesión: evita duplicados de Android
   rec.interimResults = true;
-
-  rec.onstart = ()=>{
-    listening = true;
-    $("btnMic").classList.add("listening");
-    $("btnMic").textContent = "⏹";
-    $("micStatus").innerHTML = '<b>Escuchando…</b> dictá la dirección completa (calle, altura y barrio).';
-  };
+  rec.maxAlternatives = 1;
+  gotResult = false;
 
   rec.onresult = e=>{
-    let interim = "";
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal){
-        const clean = cleanDictation(t);
-        const low = clean.toLowerCase();
-        if(/^(listo|terminar|terminé|basta|parar)\.?$/.test(low)){ stopMic(); return; }
-        if(/^(borrar|borrá)( la)?( última)?\.?$/.test(low)){
-          const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n");
-          $("micStatus").innerHTML = '<b>Última línea borrada.</b> Seguí dictando…';
-          continue;
-        }
-        if(clean.length > 3){
-          appendAddress(clean);
-          $("micStatus").innerHTML = `✓ Agregada: <b>${clean.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
-        }
-      }else{
-        interim += t;
-      }
+    const res = e.results[e.results.length-1];
+    const t = res[0].transcript;
+    if(!res.isFinal){
+      $("micStatus").innerHTML = '<span id="micInterim">'+t.replace(/</g,"&lt;")+'…</span>';
+      return;
     }
-    if(interim) $("micStatus").innerHTML = '<span id="micInterim">'+interim.replace(/</g,"&lt;")+'…</span>';
+    if(gotResult) return;          // solo el primer final de cada sesión
+    gotResult = true;
+    const clean = cleanDictation(t);
+    const low = clean.toLowerCase();
+    if(/^(listo|terminar|terminé|basta|parar)\.?$/.test(low)){ stopMic(); return; }
+    if(/^(borrar|borrá)( la)?( última)?\.?$/.test(low)){
+      const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n");
+      lastHeard=""; 
+      $("micStatus").innerHTML = '<b>Última línea borrada.</b> Seguí dictando…';
+      return;
+    }
+    if(clean.length > 3){
+      if(appendAddress(clean))
+        $("micStatus").innerHTML = `✓ Agregada: <b>${clean.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
+    }
   };
 
   rec.onerror = ev=>{
@@ -425,9 +426,24 @@ $("btnMic").addEventListener("click", ()=>{
     }
   };
 
-  rec.onend = ()=>{ if(listening) try{ rec.start(); }catch(e){ stopMic(); } };
+  // al terminar cada frase, arranca una sesión nueva tras una pequeña pausa
+  rec.onend = ()=>{ if(listening) setTimeout(startSession, 300); };
 
-  try{ rec.start(); }catch(e){ stopMic(); }
+  try{ rec.start(); }catch(e){ setTimeout(()=>{ if(listening) startSession(); }, 500); }
+}
+
+$("btnMic").addEventListener("click", ()=>{
+  if(!SR){
+    alert("Este navegador no soporta dictado por voz.\n\nAlternativa: tocá el cuadro de direcciones y usá el micrófono del teclado del celular (Gboard) — funciona igual de bien.");
+    return;
+  }
+  if(listening){ stopMic(); return; }
+  listening = true;
+  lastHeard = ""; lastHeardAt = 0;
+  $("btnMic").classList.add("listening");
+  $("btnMic").textContent = "⏹";
+  $("micStatus").innerHTML = '<b>Escuchando…</b> dictá la dirección completa (calle, altura y barrio).';
+  startSession();
 });
 
 /* ─────────── geocodificación (Nominatim, 1 req/seg) ─────────── */
