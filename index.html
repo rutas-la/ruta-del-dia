@@ -228,7 +228,7 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
       <button id="btnMic" title="Dictar direcciones por voz">🎤</button>
       <div id="micStatus">Tocá el micrófono y dictá una dirección por vez. Decí <b>"listo"</b> para terminar.</div>
     </div>
-    <div class="hint">Una dirección por línea. Opcional: agregá <b>| teléfono</b> al final para avisarle a ese destinatario por WhatsApp con un toque. La ciudad se agrega sola si falta.</div>
+    <div class="hint">Una dirección por línea, solo direcciones. Los teléfonos de los destinatarios los cargás en el paso siguiente, al verificar. La ciudad se agrega sola si falta.</div>
 
     <div class="row">
       <div>
@@ -288,7 +288,7 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
     <h2>Verificá las direcciones antes de calcular</h2>
     <div id="verList"></div>
     <button class="btn btn-main" id="btnConfirm">✓ Todo bien, calcular ruta</button>
-    <div class="hint">Debajo de cada dirección aparece el lugar exacto que se encontró. Tocá ✏️ para corregir una o ✗ para sacarla del reparto.</div>
+    <div class="hint">Debajo de cada dirección aparece el lugar exacto que se encontró — tocá ✏️ para corregirla o ✗ para sacarla. En el campo 📲 poné el teléfono del destinatario tal como viene en la etiqueta (con 0, 15 o guiones da igual): se convierte solo al formato de WhatsApp.</div>
   </div>
 
   <!-- ══════════ RESULTADOS ══════════ -->
@@ -631,9 +631,10 @@ function renderVerify(){
       row.innerHTML=`
         <div class="badge ${p.isStart?"start":""}" style="width:26px;height:26px;font-size:12px">${p.isStart?"S":idx}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:14px">${escapeHtml(p.original)}${p.phone?" 📲":""}</div>
+          <div style="font-weight:600;font-size:14px">${escapeHtml(p.original)}</div>
           <div class="found">📍 ${escapeHtml(shortDisplay(p.display))}</div>
           ${far?'<div class="warn">⚠ Queda a más de 60 km de la salida — revisala</div>':""}
+          ${p.isStart?"":`<input type="tel" data-ph="${idx}" placeholder="📲 Teléfono del destinatario (opcional)" value="${escapeHtml(p.phoneRaw||"")}" style="margin-top:8px;font-size:14px;padding:8px 10px">`}
         </div>
         <div class="act">
           <button class="vbtn" data-edit="${idx}">✏️</button>
@@ -664,6 +665,11 @@ async function lookupSingle(line){
   const p = await geocode(addrP, $("city").value.trim());
   return p ? {...p, original:addrP, phone} : null;
 }
+
+$("verList").addEventListener("input", e=>{
+  const inp = e.target.closest("input[data-ph]");
+  if(inp) gPoints[+inp.dataset.ph].phoneRaw = inp.value;
+});
 
 $("verList").addEventListener("click", async e=>{
   const b = e.target.closest("button"); if(!b) return;
@@ -702,6 +708,12 @@ $("verList").addEventListener("click", async e=>{
 $("btnConfirm").addEventListener("click", ()=>{
   if(gPoints.length<2){ alert("Necesitás al menos una entrega ubicada además de la salida."); return; }
   if(gFailed.length && !confirm(`Hay ${gFailed.length} dirección(es) sin ubicar que quedarán FUERA de la ruta. ¿Continuar igual?`)) return;
+  gPoints.forEach(p=>{
+    if(p.phoneRaw!==undefined){
+      const d = (p.phoneRaw||"").replace(/[^\d]/g,"");
+      p.phone = d.length>=6 ? normPhone(d) : null;
+    }
+  });
   $("verifyCard").style.display="none";
   optimizeAndRender(gPoints.slice());
 });
