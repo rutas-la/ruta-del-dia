@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v17</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v18</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -391,20 +391,40 @@ $("veh").addEventListener("click", e=>{
 });
 
 /* ─────────── geolocalización ─────────── */
+let startGeo = null; // {lat, lon, label, display} cuando la salida viene del GPS
+
 $("btnGeo").addEventListener("click", ()=>{
   if(!navigator.geolocation){ alert("Tu navegador no permite geolocalización."); return; }
   $("btnGeo").textContent = "Buscando ubicación…";
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      $("startAddr").value = `@${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`;
-      $("btnGeo").textContent = "📍 Ubicación cargada ✓";
-    },
-    ()=>{
-      $("btnGeo").textContent = "📍 Usar mi ubicación actual";
-      alert("No se pudo obtener la ubicación. Escribí la dirección de partida a mano.");
-    },
-    {enableHighAccuracy:true, timeout:10000}
-  );
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    let label = `@${lat.toFixed(6)},${lon.toFixed(6)}`;
+    let display = "Coordenadas GPS actuales";
+    try{
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`,{headers:{"Accept-Language":"es"}});
+      if(r.ok){
+        const j = await r.json();
+        const a = j.address || {};
+        const calle = [a.road, a.house_number].filter(Boolean).join(" ");
+        const zona = a.suburb || a.neighbourhood || a.city_district || a.town || a.city || "";
+        const legible = [calle, zona].filter(Boolean).join(", ");
+        if(legible){ label = legible; display = j.display_name || legible; }
+      }
+    }catch(e){}
+    startGeo = {lat, lon, label, display};
+    $("startAddr").value = label;
+    $("btnGeo").textContent = "📍 Ubicación cargada ✓";
+  },
+  ()=>{
+    $("btnGeo").textContent = "📍 Usar mi ubicación actual";
+    alert("No se pudo obtener la ubicación. Escribí la dirección de partida a mano.");
+  },
+  {enableHighAccuracy:true, timeout:10000});
+});
+
+// si el usuario edita la salida a mano, se usa lo que escribió
+$("startAddr").addEventListener("input", ()=>{
+  if(startGeo && $("startAddr").value.trim() !== startGeo.label) startGeo = null;
 });
 
 /* ─────────── dictado por voz ─────────── */
@@ -584,6 +604,10 @@ $("btnMic").addEventListener("click", ()=>{
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 async function geocode(addr, city){
+  // salida por GPS: si el texto coincide con la etiqueta legible, usar las coordenadas exactas
+  if(startGeo && addr === startGeo.label)
+    return {lat:startGeo.lat, lon:startGeo.lon, label:addr, display:startGeo.display};
+
   // coordenadas directas: "@lat,lon"
   const m = addr.match(/^@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
   if(m) return {lat:+m[1], lon:+m[2], label:"Mi ubicación", display:"Coordenadas GPS actuales"};
