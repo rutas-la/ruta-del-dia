@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía de uso — Ruta del Día</title>
+<style>
+  :root{--ink:#14181d;--soft:#4a545e;--paper:#f2f4f6;--line:#dde3e8;--amber:#ffb400;--ok:#0e9e6e}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:720px;margin:0 auto;padding:20px 16px 70px;color:var(--ink);line-height:1.55;background:var(--paper)}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .logo{width:44px;height:44px;border-radius:12px;background:var(--amber);display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 3px 0 #c78900}
+  h1{font-size:21px;letter-spacing:-.02em;margin:0}
+  header p{margin:0;font-size:13px;color:var(--soft)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .n{width:26px;height:26px;border-radius:50%;background:var(--amber);border:2px solid var(--ink);
+    display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:none}
+  p,li{font-size:14.5px;color:#333b44;margin:6px 0}
+  ul{padding-left:20px;margin:6px 0}
+  b.k{background:#fff6dc;border:1px solid #f0d98a;border-radius:6px;padding:1px 7px;font-size:13px;white-space:nowrap}
+  .tip{background:#f3faf7;border:1.5px solid #cde8dd;border-radius:10px;padding:10px 14px;font-size:13.5px;margin-top:10px}
+  .aviso{background:#fdf6ec;border:1.5px solid #f0d9b0;border-radius:10px;padding:10px 14px;font-size:13.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">↯</div>
+  <div>
+    <h1>Ruta del Día — Guía de uso</h1>
+    <p>Optimizador de entregas gratuito · 5 minutos para arrancar</p>
+  </div>
+</header>
+
+<div class="card">
+  <h2><span class="n">1</span> Instalar la app (una sola vez)</h2>
+  <p>Abrí <b>https://rutas-la.github.io/ruta-del-dia/</b> en Chrome.</p>
+  <p>Tocá el menú <b class="k">⋮</b> → <b class="k">Agregar a pantalla de inicio</b> → Instalar.
+  Queda con ícono propio, como cualquier app. Necesita internet para calcular rutas.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">2</span> Punto de partida</h2>
+  <p>Tocá <b class="k">📍 Usar mi ubicación actual</b> (dale permiso de ubicación) y aparece
+  tu dirección — o escribila a mano si salís desde otro lado, por ejemplo el depósito.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">3</span> Cargar las direcciones del día</h2>
+  <p><b>Escribiendo:</b> una dirección por línea. Cuanto más completa, mejor:
+  calle + altura + barrio (ej: <i>Humboldt 450, Palermo</i>).</p>
+  <p><b>Por voz (recomendado):</b> tocá el micrófono <b class="k">🎤</b> y dictá natural:</p>
+  <ul>
+    <li>Decí la dirección completa: <i>"Avenida Cabildo dos mil cuarenta, Belgrano"</i></li>
+    <li>Si tenés el teléfono del destinatario, seguí con la palabra
+    <b class="k">teléfono</b> y el número: <i>"...teléfono once veintitrés noventa y nueve..."</i></li>
+    <li>Hacé una pausa y la línea se agrega sola. Dictá la siguiente.</li>
+    <li>Comandos útiles: <b class="k">borrar</b> (elimina lo último),
+    <b class="k">siguiente</b> (cierra la dirección ya), <b class="k">listo</b> (apaga el micrófono).</li>
+  </ul>
+  <p>Elegí tu <b>vehículo</b> (moto/auto/camioneta) y si volvés al punto de partida al final.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">4</span> Verificar antes de salir</h2>
+  <p>Tocá <b class="k">Calcular ruta óptima</b>. La app ubica cada dirección (tarda ~1 segundo
+  por dirección) y te muestra la pantalla de verificación:</p>
+  <ul>
+    <li>Debajo de cada dirección, en gris, aparece <b>el lugar exacto que encontró</b>. Miralo: es tu seguro contra ir a cualquier lado.</li>
+    <li>¿Encontró mal o no encontró? Tocá <b class="k">✏️</b> o el campo rojo, corregí y buscá de nuevo con <b class="k">🔎</b>. Con <b class="k">✗</b> la sacás.</li>
+    <li>Acá podés cargar o completar el <b>📲 teléfono</b> de cada destinatario, tal como viene
+    en la etiqueta (con 0, 15 o guiones da igual — se convierte solo). Si el número viene sin
+    código de área, se usa el del campo de arriba (11 por defecto).</li>
+  </ul>
+  <p>Tocá <b class="k">✓ Todo bien, calcular ruta</b>.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">5</span> Tu ruta del día</h2>
+  <p>Vas a ver el mapa con las paradas numeradas en el orden óptimo, la distancia y el tiempo
+  total, y la lista de paradas con su <b>ventana de llegada</b> (ej: "entre las 10:20 y las 10:45").
+  Cada parada tiene tres botones:</p>
+  <ul>
+    <li><b class="k">✓ Entregado</b> — al entregar. Se abre un panel para registrar quién recibió
+    (Titular / Familiar / Portería / Vecino), con nombre y DNI opcionales. Un toque y sigue.
+    Los horarios de las paradas restantes <b>se recalculan solos</b>.</li>
+    <li><b class="k">Ir ➜</b> — abre Google Maps navegando a esa parada.</li>
+    <li><b class="k">📲 Avisar</b> — abre WhatsApp con el mensaje listo: "Tu paquete llega entre
+    las 10:20 y las 10:45". Si cargaste el teléfono, abre directo el chat de ese destinatario.</li>
+  </ul>
+  <p>Abajo están los <b>tramos de Google Maps</b> para navegar la ruta completa por partes.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">6</span> Modo reparto (mientras estás en la calle)</h2>
+  <p>Tocá <b class="k">▶ Iniciar modo reparto</b>: aparece tu punto azul en el mapa y una barra
+  que siempre muestra la próxima parada pendiente y cuántos metros faltan. Cuando estás llegando
+  (menos de ~120 m), <b>el teléfono vibra</b> y la parada se resalta. Además va midiendo los
+  kilómetros reales que recorrés.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">7</span> Historial</h2>
+  <p>El botón <b class="k">🕘</b> (arriba a la derecha) guarda todos tus repartos: fecha, entregas
+  realizadas con hora y quién recibió, y km recorridos. Todo queda <b>solo en tu teléfono</b> —
+  nada se sube a ningún servidor.</p>
+</div>
+
+<div class="card">
+  <h2>⚠ Para los testers: cómo reportar problemas</h2>
+  <div class="aviso">Si algo funciona mal o raro: <b>1)</b> sacá una captura de pantalla,
+  <b>2)</b> anotá qué estabas haciendo y qué esperabas que pase, <b>3)</b> fijate qué versión
+  dice el encabezado de la app (v19, v20...) y <b>4)</b> mandale todo a Miguel. Los reportes con
+  captura + versión se arreglan 10 veces más rápido.</div>
+  <div class="tip">💡 <b>La app se actualiza sola</b>: cuando haya una versión nueva, cerrala del
+  todo y abrila dos veces. El número de versión del encabezado te dice cuál tenés.</div>
+  <div class="tip">💡 <b>Consejos de dictado</b>: hablá normal, con el patrón calle + altura +
+  barrio. El barrio ayuda muchísimo a que no confunda calles repetidas entre Capital y provincia.</div>
+</div>
+
+</body>
+</html>
