@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v22</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v23</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -942,12 +942,23 @@ function splitPhone(line){
   return [line.trim(), null, ""];
 }
 
+function countryLang(){
+  const sel=$("country");
+  return (sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].dataset.lang) || "es";
+}
+// convención horaria real de cada país (no siempre coincide con el default del sistema)
+const usa12h = {mx:true,co:true,pe:true,ve:true,ec:true,gt:true,hn:true,sv:true,ni:true,cr:true,pa:true,do:true,
+                ar:false,uy:false,cl:false,br:false,py:false,bo:false};
+function locTime(d){
+  const cc=$("country").value;
+  return d.toLocaleTimeString(countryLang(),{hour:"2-digit",minute:"2-digit",hour12: usa12h[cc]===true});
+}
+
 function etaWindow(cumSec){
   const margin = Math.max(600, cumSec*0.12);
-  const fmt = d=>d.toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
   return {
-    from: fmt(new Date(Date.now() + Math.max(60, cumSec - margin*0.4)*1000)),
-    to:   fmt(new Date(Date.now() + (cumSec + margin)*1000))
+    from: locTime(new Date(Date.now() + Math.max(60, cumSec - margin*0.4)*1000)),
+    to:   locTime(new Date(Date.now() + (cumSec + margin)*1000))
   };
 }
 
@@ -1033,7 +1044,7 @@ function renderResults(points, result, roundtrip, engine){
         div.classList.add("done"); div.classList.remove("near");
         div.querySelector(".okbtn").textContent="↩ Deshacer";
         const old=div.querySelector(".recvInfo"); if(old) old.remove();
-        const hora=new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+        const hora=locTime(new Date());
         let label=[who, name].filter(Boolean).join(": ");
         if(dni) label += (label?" ":"") + "(DNI "+dni+")";
         const info=document.createElement("div");
@@ -1242,13 +1253,13 @@ function renderHist(){
   if(!h.length){ L.innerHTML='<div class="hint">Todavía no hay repartos guardados. Se registran solos al calcular una ruta.</div>'; return; }
   h.forEach(t=>{
     const d=new Date(t.date);
-    const fecha=d.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short"})+" "+d.toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+    const fecha=d.toLocaleDateString(countryLang(),{weekday:"short",day:"numeric",month:"short"})+" "+locTime(d);
     const done=t.stops.filter(s=>s.done).length;
     const kmT=(t.gpsKm>0.3? t.gpsKm.toFixed(1)+" km" : (t.plannedKm||0).toFixed(1)+" km (plan)").replace(".",",");
     const det=document.createElement("details"); det.className="ht";
     det.innerHTML=`<summary><span><b>${fecha}</b> · ${t.veh||""}</span><span class="hkm">${done}/${t.stops.length} · ${kmT}</span></summary>`+
       t.stops.map(s=>{
-        const hora=s.t? new Date(s.t).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}) : "";
+        const hora=s.t? locTime(new Date(s.t)) : "";
         const recv=s.r && (s.r.w||s.r.n||s.r.d) ? " · Recibió "+[s.r.w,s.r.n].filter(Boolean).join(": ")+(s.r.d?" (DNI "+s.r.d+")":"") : "";
         return `<div class="hstop ${s.done?"hdone":""}">${s.done?"✓":"○"} ${s.a.replace(/</g,"&lt;")}${hora?" · "+hora:""}${recv.replace(/</g,"&lt;")}</div>`;
       }).join("");
