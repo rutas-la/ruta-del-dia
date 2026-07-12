@@ -209,7 +209,7 @@
     <div class="logo">↯</div>
     <div>
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v11</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v12</b></p>
     </div>
   </header>
 
@@ -226,9 +226,9 @@ Av. Rivadavia 6900, Flores
 Defensa 800, San Telmo | +5491133445566"></textarea>
     <div class="micRow">
       <button id="btnMic" title="Dictar direcciones por voz">🎤</button>
-      <div id="micStatus">Tocá el micrófono y dictá una dirección por vez. Decí <b>"listo"</b> para terminar.</div>
+      <div id="micStatus">Dictá la dirección; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"listo"</b> para terminar.</div>
     </div>
-    <div class="hint">Una dirección por línea, solo direcciones. Los teléfonos de los destinatarios los cargás en el paso siguiente, al verificar. La ciudad se agrega sola si falta.</div>
+    <div class="hint">Una dirección por línea. El teléfono del destinatario va al lado, separado por <b>|</b> (ej: Humboldt 450 | 2233-4455) — dictándolo con la palabra "teléfono" se agrega solo. También podés cargarlos en el paso de verificación.</div>
 
     <div class="row">
       <div>
@@ -408,32 +408,58 @@ function stopMic(){
   if(rec) try{ rec.onend=null; rec.stop(); }catch(e){}
   $("btnMic").classList.remove("listening");
   $("btnMic").textContent = "🎤";
-  $("micStatus").innerHTML = 'Tocá el micrófono y dictá una dirección por vez. Decí <b>"listo"</b> para terminar.';
+  $("micStatus").innerHTML = 'Dictá la dirección; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"listo"</b> para terminar.';
 }
 
 /* — armado de dirección por fragmentos — */
-let buf = "", bufTimer = null;
+let buf = "", phoneBuf = "", phoneMode = false, bufTimer = null;
 const hasDigit = s => /\d/.test(s);
 const streetStart = s => /^(av|avenida|calle|pasaje|pje|diagonal|diag|boulevard|bv|bvd|ruta|camino|autopista)\b/i.test(s.replace(/\./g,""));
 
 function commitBuf(){
   if(bufTimer){ clearTimeout(bufTimer); bufTimer=null; }
-  const line = buf.replace(/\s{2,}/g," ").trim();
-  buf = "";
+  let line = buf.replace(/\s{2,}/g," ").trim();
+  if(line && phoneBuf) line += " | " + phoneBuf;
+  buf = ""; phoneBuf = ""; phoneMode = false;
   if(line.length > 3 && appendAddress(line))
     $("micStatus").innerHTML = `✓ Agregada: <b>${line.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
 }
 
-function feedFragment(clean){
-  if(buf === "") buf = clean;
-  else if(/^\d/.test(clean)) buf += " " + clean;                    // altura → se pega
-  else if(!hasDigit(buf)) buf += " " + clean;                        // dirección sin número aún → sigue armándose
-  else if(!hasDigit(clean) && clean.split(" ").length<=3 && !streetStart(clean))
-    buf += " " + clean;                                              // barrio/localidad → se pega
-  else { commitBuf(); buf = clean; }                                 // empezó otra calle → cerrar la anterior
+function scheduleCommit(){
   if(bufTimer) clearTimeout(bufTimer);
-  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, 4000);          // 4 s de silencio con dirección completa → cerrar
-  if(buf) $("micStatus").innerHTML = `🎙 Armando: <b>${buf.replace(/</g,"&lt;")}</b>…`;
+  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, 4000);
+}
+
+function showBuf(){
+  const t = buf + (phoneBuf ? " 📲 " + phoneBuf : (phoneMode ? " 📲 …" : ""));
+  if(t.trim()) $("micStatus").innerHTML = `🎙 Armando: <b>${t.replace(/</g,"&lt;")}</b>…`;
+}
+
+function feedFragment(clean){
+  // ¿empieza el dictado del teléfono?
+  const telKey = clean.match(/^(?:tel[eé]fono|celular|cel|n[uú]mero|whatsapp|wasap)\b[:.,]?\s*(.*)$/i);
+  if(telKey && buf){
+    phoneMode = true;
+    const rest = (telKey[1]||"").replace(/\D/g,"");
+    if(rest) phoneBuf += rest;
+    scheduleCommit(); showBuf(); return;
+  }
+  // en modo teléfono, los fragmentos numéricos se suman al número
+  if(phoneMode){
+    const digits = clean.replace(/\D/g,"");
+    const soloNumeros = clean.replace(/[\d\s\-.,]/g,"") === "";
+    if(digits && soloNumeros){ phoneBuf += digits; scheduleCommit(); showBuf(); return; }
+    // llegó texto: es la próxima dirección → cerrar la actual
+    commitBuf(); buf = clean; scheduleCommit(); showBuf(); return;
+  }
+  // armado normal de la dirección
+  if(buf === "") buf = clean;
+  else if(/^\d/.test(clean)) buf += " " + clean;
+  else if(!hasDigit(buf)) buf += " " + clean;
+  else if(!hasDigit(clean) && clean.split(" ").length<=3 && !streetStart(clean))
+    buf += " " + clean;
+  else { commitBuf(); buf = clean; }
+  scheduleCommit(); showBuf();
 }
 
 function startSession(){
@@ -459,7 +485,7 @@ function startSession(){
     const low = clean.toLowerCase();
     if(/^(listo|terminar|terminé|basta|parar)\.?$/.test(low)){ stopMic(); return; }
     if(/^(borrar|borrá)( la)?( última)?\.?$/.test(low)){
-      if(buf){ buf=""; if(bufTimer){clearTimeout(bufTimer);bufTimer=null;} }
+      if(buf || phoneBuf){ buf=""; phoneBuf=""; phoneMode=false; if(bufTimer){clearTimeout(bufTimer);bufTimer=null;} }
       else { const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n"); lastHeard=""; }
       $("micStatus").innerHTML = '<b>Borrado.</b> Seguí dictando…';
       return;
@@ -593,7 +619,7 @@ $("btnGo").addEventListener("click", async ()=>{
     $("ptext").textContent = `Ubicando dirección ${i+1} de ${all.length}…`;
     try{
       const p = await geocode(parsed[i][0], city);
-      if(p) points.push({...p, original:parsed[i][0], phone:parsed[i][1], isStart:i===0});
+      if(p) points.push({...p, original:parsed[i][0], phone:parsed[i][1], phoneRaw:parsed[i][2]||"", isStart:i===0});
       else failed.push(all[i]);
     }catch(e){ failed.push(all[i]); }
     if(i<all.length-1) await sleep(1100);
@@ -788,10 +814,10 @@ const areaDefaults = {ar:"11", br:"11", mx:"55", cl:"9", uy:"9", pe:"9", py:"9",
 function splitPhone(line){
   const parts = line.split("|");
   if(parts.length>1){
-    const tel = parts.slice(1).join("").replace(/[^\d+]/g,"").replace(/^\+/,"");
-    return [parts[0].trim(), tel.length>=6 ? normPhone(tel) : null];
+    const raw = parts.slice(1).join("").replace(/[^\d+]/g,"").replace(/^\+/,"");
+    return [parts[0].trim(), raw.length>=6 ? normPhone(raw) : null, raw];
   }
-  return [line.trim(), null];
+  return [line.trim(), null, ""];
 }
 
 function etaWindow(cumSec){
