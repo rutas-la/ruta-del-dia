@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v19</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v20</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -308,6 +308,17 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
       <button data-v="auto" data-f="1.00" class="sel"><span class="ico">🚗</span>Auto</button>
       <button data-v="camioneta" data-f="1.15"><span class="ico">🚚</span>Camioneta</button>
     </div>
+
+    <div class="row">
+      <div>
+        <label>Navegador para "Ir ➜"</label>
+        <select id="navApp">
+          <option value="gmaps" selected>Google Maps</option>
+          <option value="waze">Waze</option>
+        </select>
+      </div>
+    </div>
+    <div class="hint">En moto: en Google Maps tocá el ícono 🏍️ la primera vez (lo recuerda), o elegí Waze y configurá "moto" en sus ajustes una sola vez.</div>
 
     <label class="chk"><input type="checkbox" id="roundtrip" checked> Volver al punto de partida al terminar</label>
 
@@ -962,7 +973,9 @@ function renderResults(points, result, roundtrip, engine){
       p.etaFrom = w.from; p.etaTo = w.to;
       meta = `+${fmtDist(legD)} · llegada entre las ${w.from} y las ${w.to}`;
     }
-    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving`;
+    const navUrl = $("navApp").value==="waze"
+      ? `https://waze.com/ul?ll=${p.lat},${p.lon}&navigate=yes`
+      : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving`;
     div.innerHTML = `${badge}
       <div class="info">
         <div class="addr">${escapeHtml(p.original)}</div>
@@ -1306,6 +1319,19 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
+
+/* ─────────── preferencias persistentes ─────────── */
+try{
+  const prefNav = localStorage.getItem("rdd_nav");
+  if(prefNav) $("navApp").value = prefNav;
+  const prefVeh = localStorage.getItem("rdd_veh");
+  if(prefVeh){
+    const b=document.querySelector(`#veh button[data-v="${prefVeh}"]`);
+    if(b){ document.querySelectorAll("#veh button").forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); vehFactor=parseFloat(b.dataset.f); vehName=b.dataset.v; }
+  }
+}catch(e){}
+$("navApp").addEventListener("change", ()=>{ try{ localStorage.setItem("rdd_nav", $("navApp").value); }catch(e){} });
+$("veh").addEventListener("click", ()=>{ try{ localStorage.setItem("rdd_veh", vehName); }catch(e){} });
 </script>
 </body>
 </html>

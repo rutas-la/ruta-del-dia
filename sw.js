@@ -1,4 +1,4 @@
-const CACHE = "ruta-del-dia-v19";
+const CACHE = "ruta-del-dia-v20";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
