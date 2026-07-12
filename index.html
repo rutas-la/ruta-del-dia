@@ -209,7 +209,7 @@
     <div class="logo">↯</div>
     <div>
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas</p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v11</b></p>
     </div>
   </header>
 
@@ -715,6 +715,10 @@ $("verList").addEventListener("click", async e=>{
 $("btnConfirm").addEventListener("click", ()=>{
   if(gPoints.length<2){ alert("Necesitás al menos una entrega ubicada además de la salida."); return; }
   if(gFailed.length && !confirm(`Hay ${gFailed.length} dirección(es) sin ubicar que quedarán FUERA de la ruta. ¿Continuar igual?`)) return;
+  // lectura directa de los campos de teléfono (independiente de eventos del teclado)
+  document.querySelectorAll("#verList input[data-ph]").forEach(inp=>{
+    gPoints[+inp.dataset.ph].phoneRaw = inp.value;
+  });
   gPoints.forEach(p=>{
     if(p.phoneRaw!==undefined){
       const d = (p.phoneRaw||"").replace(/[^\d]/g,"");
