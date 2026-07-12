@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v18</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v19</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -500,7 +500,8 @@ function commitBuf(){
 
 function scheduleCommit(){
   if(bufTimer) clearTimeout(bufTimer);
-  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, 4000);
+  const espera = phoneMode ? 9000 : 4000;   // dictando teléfono: más tiempo entre grupos de números
+  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, espera);
 }
 
 function showBuf(){
