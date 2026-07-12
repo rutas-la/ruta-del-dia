@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v15</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v16</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -454,9 +454,18 @@ let buf = "", phoneBuf = "", phoneMode = false, bufTimer = null;
 const hasDigit = s => /\d/.test(s);
 const streetStart = s => /^(av|avenida|calle|pasaje|pje|diagonal|diag|boulevard|bv|bvd|ruta|camino|autopista)\b/i.test(s.replace(/\./g,""));
 
+const TELKEY = /(?:tel[eé]fono|celular|cel|whatsapp|wasap)/i;
+
 function commitBuf(){
   if(bufTimer){ clearTimeout(bufTimer); bufTimer=null; }
   let line = buf.replace(/\s{2,}/g," ").trim();
+  // red de seguridad: si quedó "teléfono + número" pegado a la dirección, separarlo acá
+  const tail = line.match(new RegExp("^(.*?)[\\s,]*\\b"+TELKEY.source+"\\b[:.,]?\\s*([\\d\\s\\-.]*)$","i"));
+  if(tail){
+    line = tail[1].trim();
+    const dg = (tail[2]||"").replace(/\D/g,"");
+    if(dg && !phoneBuf) phoneBuf = dg;
+  }
   if(line && phoneBuf) line += " | " + phoneBuf;
   buf = ""; phoneBuf = ""; phoneMode = false;
   if(line.length > 3 && appendAddress(line))
@@ -473,14 +482,27 @@ function showBuf(){
   if(t.trim()) $("micStatus").innerHTML = `🎙 Armando: <b>${t.replace(/</g,"&lt;")}</b>…`;
 }
 
+// fusión normal de fragmentos de dirección
+function addrMerge(part){
+  if(buf === "") buf = part;
+  else if(/^\d/.test(part)) buf += " " + part;
+  else if(!hasDigit(buf)) buf += " " + part;
+  else if(!hasDigit(part) && part.split(" ").length<=3 && !streetStart(part)) buf += " " + part;
+  else { commitBuf(); buf = part; }
+}
+
 function feedFragment(clean){
-  // ¿empieza el dictado del teléfono?
-  const telKey = clean.match(/^(?:tel[eé]fono|celular|cel|n[uú]mero|whatsapp|wasap)\b[:.,]?\s*(.*)$/i);
-  if(telKey && buf){
-    phoneMode = true;
-    const rest = (telKey[1]||"").replace(/\D/g,"");
-    if(rest) phoneBuf += rest;
-    scheduleCommit(); showBuf(); return;
+  // la palabra clave puede venir EN CUALQUIER PARTE del fragmento
+  const m = clean.match(new RegExp("^(.*?)(?:^|[\\s,])"+TELKEY.source+"\\b[:.,]?\\s*(.*)$","i"));
+  if(m){
+    const before=(m[1]||"").trim();
+    if(before) addrMerge(before);
+    if(buf || phoneBuf){
+      phoneMode = true;
+      const digits = (m[2]||"").replace(/\D/g,"");
+      if(digits) phoneBuf += digits;
+      scheduleCommit(); showBuf(); return;
+    }
   }
   // en modo teléfono, los fragmentos numéricos se suman al número
   if(phoneMode){
@@ -490,13 +512,7 @@ function feedFragment(clean){
     // llegó texto: es la próxima dirección → cerrar la actual
     commitBuf(); buf = clean; scheduleCommit(); showBuf(); return;
   }
-  // armado normal de la dirección
-  if(buf === "") buf = clean;
-  else if(/^\d/.test(clean)) buf += " " + clean;
-  else if(!hasDigit(buf)) buf += " " + clean;
-  else if(!hasDigit(clean) && clean.split(" ").length<=3 && !streetStart(clean))
-    buf += " " + clean;
-  else { commitBuf(); buf = clean; }
+  addrMerge(clean);
   scheduleCommit(); showBuf();
 }
 
