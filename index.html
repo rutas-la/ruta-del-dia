@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v20</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v22</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -319,6 +319,32 @@ Defensa 800, San Telmo | +5491133445566"></textarea>
       </div>
     </div>
     <div class="hint">En moto: en Google Maps tocá el ícono 🏍️ la primera vez (lo recuerda), o elegí Waze y configurá "moto" en sus ajustes una sola vez.</div>
+
+    <h2 style="margin-top:20px">4 · Tu marca y el mensaje al cliente</h2>
+    <div class="row">
+      <div>
+        <label>Nombre de tu empresa o tienda (opcional)</label>
+        <input type="text" id="bizName" placeholder="Ej: Florería Marita">
+      </div>
+      <div style="max-width:170px">
+        <label>¿Qué entregás?</label>
+        <select id="bizWord">
+          <option value="pedido" selected>Tu pedido</option>
+          <option value="entrega">Tu entrega</option>
+          <option value="paquete">Tu paquete</option>
+          <option value="compra">Tu compra</option>
+        </select>
+      </div>
+    </div>
+
+    <label style="margin-top:12px">Mensaje de WhatsApp (editalo a gusto)</label>
+    <textarea id="msgTpl" style="min-height:90px;font-size:14px"></textarea>
+    <div class="hint">Las palabras entre llaves se reemplazan solas en cada parada:
+    <b>{direccion}</b>, <b>{desde}</b> y <b>{hasta}</b> (horarios), <b>{tienda}</b> (tu nombre).</div>
+    <button class="btn btn-ghost" id="btnTplReset" style="margin-top:8px;padding:9px;font-size:13px">↺ Restaurar mensaje por defecto</button>
+
+    <label style="margin-top:14px">Así lo va a recibir el cliente:</label>
+    <div id="msgPrev" style="background:#dcf8c6;border:1px solid #b8e0a0;border-radius:12px 12px 12px 3px;padding:11px 13px;font-size:13.5px;color:#1f2c1a;line-height:1.5"></div>
 
     <label class="chk"><input type="checkbox" id="roundtrip" checked> Volver al punto de partida al terminar</label>
 
@@ -1053,7 +1079,7 @@ function renderResults(points, result, roundtrip, engine){
       div.querySelector(".nav:not(.okbtn):not(.wa)").addEventListener("click", ev=>ev.stopPropagation());
       div.querySelector(".wa").addEventListener("click", ev=>{
         ev.preventDefault(); ev.stopPropagation();
-        const msg = `¡Hola! 🚚 Soy tu repartidor. Tu paquete está en camino a ${p.original}. Ventana de entrega estimada: entre las ${p.etaFrom} y las ${p.etaTo} hs. ¡Cualquier cosa me respondés por acá!`;
+        const msg = fillTpl(currentTpl(), p.original, p.etaFrom, p.etaTo);
         const url = p.phone
           ? `https://api.whatsapp.com/send?phone=${p.phone}&text=${encodeURIComponent(msg)}`
           : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -1320,6 +1346,52 @@ if("serviceWorker" in navigator){
   });
 }
 
+/* ─────────── plantilla del mensaje de WhatsApp ─────────── */
+function buildDefaultTpl(){
+  const biz = $("bizName").value.trim();
+  const cosa = $("bizWord").value || "pedido";
+  const quien = biz ? "Te saluda {tienda} 🚚" : "Soy tu repartidor 🚚";
+  return `¡Hola! ${quien}. Tu ${cosa} está en camino a {direccion}. Llegada estimada: entre las {desde} y las {hasta} hs. ¡Cualquier cosa me respondés por acá!`;
+}
+
+function fillTpl(tpl, dir, desde, hasta){
+  return tpl
+    .replaceAll("{tienda}", $("bizName").value.trim() || "tu repartidor")
+    .replaceAll("{direccion}", dir)
+    .replaceAll("{desde}", desde)
+    .replaceAll("{hasta}", hasta);
+}
+
+function currentTpl(){
+  let custom = "";
+  try{ custom = localStorage.getItem("rdd_msg") || ""; }catch(e){}
+  return custom || buildDefaultTpl();
+}
+
+function refreshTplUI(fromFields){
+  let custom = "";
+  try{ custom = localStorage.getItem("rdd_msg") || ""; }catch(e){}
+  if(fromFields && !custom) $("msgTpl").value = buildDefaultTpl();
+  if(!$("msgTpl").value) $("msgTpl").value = currentTpl();
+  $("msgPrev").textContent = fillTpl($("msgTpl").value, "Humboldt 450, Palermo", "10:20", "10:45");
+}
+
+$("msgTpl").addEventListener("input", ()=>{
+  try{
+    const v = $("msgTpl").value;
+    if(v.trim() && v !== buildDefaultTpl()) localStorage.setItem("rdd_msg", v);
+    else localStorage.removeItem("rdd_msg");
+  }catch(e){}
+  refreshTplUI(false);
+});
+$("btnTplReset").addEventListener("click", ()=>{
+  try{ localStorage.removeItem("rdd_msg"); }catch(e){}
+  $("msgTpl").value = buildDefaultTpl();
+  refreshTplUI(false);
+});
+$("bizName").addEventListener("input", ()=>refreshTplUI(true));
+$("bizWord").addEventListener("change", ()=>refreshTplUI(true));
+
 /* ─────────── preferencias persistentes ─────────── */
 try{
   const prefNav = localStorage.getItem("rdd_nav");
@@ -1329,9 +1401,14 @@ try{
     const b=document.querySelector(`#veh button[data-v="${prefVeh}"]`);
     if(b){ document.querySelectorAll("#veh button").forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); vehFactor=parseFloat(b.dataset.f); vehName=b.dataset.v; }
   }
+  const prefBiz = localStorage.getItem("rdd_biz"); if(prefBiz!==null) $("bizName").value = prefBiz;
+  const prefWord = localStorage.getItem("rdd_word"); if(prefWord) $("bizWord").value = prefWord;
 }catch(e){}
 $("navApp").addEventListener("change", ()=>{ try{ localStorage.setItem("rdd_nav", $("navApp").value); }catch(e){} });
 $("veh").addEventListener("click", ()=>{ try{ localStorage.setItem("rdd_veh", vehName); }catch(e){} });
+$("bizName").addEventListener("input", ()=>{ try{ localStorage.setItem("rdd_biz", $("bizName").value); }catch(e){} });
+$("bizWord").addEventListener("change", ()=>{ try{ localStorage.setItem("rdd_word", $("bizWord").value); }catch(e){} });
+refreshTplUI(true);
 </script>
 </body>
 </html>
