@@ -42,6 +42,21 @@
   }
   header h1{font-size:20px;font-weight:800;letter-spacing:-.02em}
   header p{font-size:13px;color:var(--ink-soft)}
+  #btnHist{
+    width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);
+    background:#fff;font-size:20px;cursor:pointer;flex:none;
+  }
+
+  .hstats{display:flex;gap:10px;margin-bottom:12px}
+  .hstat{flex:1;background:#fafbfc;border:1.5px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .hstat .v{font-size:18px;font-weight:800;font-family:var(--mono)}
+  .hstat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+  details.ht{border-bottom:1px dashed var(--line);padding:10px 2px}
+  details.ht summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;font-size:14px}
+  details.ht summary b{font-weight:700}
+  details.ht summary .hkm{font-family:var(--mono);color:var(--ink-soft);font-size:13px;white-space:nowrap}
+  details.ht .hstop{font-size:13px;padding:5px 0 0 10px;color:var(--ink-soft)}
+  details.ht .hstop.hdone{color:var(--ok)}
 
   .card{
     background:var(--card);border:1px solid var(--line);
@@ -158,6 +173,15 @@
   .stop.done .badge{background:var(--ok);border-color:var(--ok);color:#fff}
   .okbtn{background:var(--ok) !important;border-color:var(--ok) !important;color:#fff !important}
   .stop.done .okbtn{background:#fafbfc !important;border-color:var(--line) !important;color:var(--ink-soft) !important}
+  .recvForm{margin-top:9px;background:#f3faf7;border:1.5px solid #cde8dd;border-radius:10px;padding:10px}
+  .recvForm input{margin-bottom:8px;font-size:14px;padding:8px 10px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips button{
+    border:1.5px solid var(--ok);background:#fff;color:var(--ok);
+    border-radius:99px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .chips button:last-child{border-color:var(--line);color:var(--ink-soft)}
+  .recvInfo{font-size:12.5px;color:var(--ok);font-weight:600;margin-top:2px}
 
   .links{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .glink{
@@ -207,11 +231,25 @@
 
   <header>
     <div class="logo">↯</div>
-    <div>
+    <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v12</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v15</b></p>
     </div>
+    <button id="btnHist" title="Historial">🕘</button>
   </header>
+
+  <!-- ══════════ HISTORIAL ══════════ -->
+  <div class="card" id="histCard" style="display:none">
+    <h2>Historial de repartos</h2>
+    <div class="hstats">
+      <div class="hstat"><div class="v" id="hKm">0</div><div class="k">km totales</div></div>
+      <div class="hstat"><div class="v" id="hEnt">0</div><div class="k">entregas</div></div>
+      <div class="hstat"><div class="v" id="hRut">0</div><div class="k">rutas</div></div>
+    </div>
+    <div id="histList"></div>
+    <button class="btn btn-ghost" id="btnHistClear" style="margin-top:12px">🗑 Borrar historial</button>
+    <div class="hint">Los km se miden por GPS durante el modo reparto (si no lo usaste, se guarda el km planificado). Todo queda solo en este teléfono.</div>
+  </div>
 
   <!-- ══════════ ENTRADA ══════════ -->
   <div class="card" id="inputCard">
@@ -840,6 +878,18 @@ function renderResults(points, result, roundtrip, engine){
   const ordered = result.order.map(i=>points[i]);
   lastOrdered = ordered; lastResult = result; lastSvcMin = svcMin;
 
+  // registro para el historial
+  liveKm = 0; lastFix = null;
+  currentTrip = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    veh: vehName,
+    plannedKm: +(result.totalDist/1000).toFixed(1),
+    gpsKm: 0,
+    stops: ordered.slice(1).map(p=>({a:p.original, done:false, t:null}))
+  };
+  saveTrip();
+
   const drive = result.totalDur * vehFactor;
   const service = svcMin*60 * (ordered.length-1);
   const totalSec = drive + service;
@@ -878,15 +928,68 @@ function renderResults(points, result, roundtrip, engine){
         <a class="nav wa" href="#">${p.phone?"📲 Avisar ✓":"📲 Avisar"}</a>
       </div>`:""}`;
     if(i>0){
-      const markDone = ()=>{
-        div.classList.toggle("done"); div.classList.remove("near");
-        div.querySelector(".okbtn").textContent = div.classList.contains("done") ? "↩ Deshacer" : "✓ Entregado";
-        resyncETAs();
-        updateCounter();
-        refreshLive();
+      // formulario de quién recibe (se muestra al confirmar)
+      const rf=document.createElement("div");
+      rf.className="recvForm"; rf.style.display="none";
+      rf.innerHTML=`<input type="text" class="recvName" placeholder="Nombre de quien recibe (opcional)">
+        <input type="text" class="recvDni" inputmode="numeric" placeholder="DNI (opcional)">
+        <div class="chips">
+          <button data-w="Titular">Titular</button>
+          <button data-w="Familiar">Familiar</button>
+          <button data-w="Portería">Portería</button>
+          <button data-w="Vecino">Vecino</button>
+          <button data-w="">Sin dato</button>
+        </div>`;
+      div.querySelector(".info").appendChild(rf);
+
+      const finishDone = (who, name, dni)=>{
+        rf.style.display="none";
+        div.classList.add("done"); div.classList.remove("near");
+        div.querySelector(".okbtn").textContent="↩ Deshacer";
+        const old=div.querySelector(".recvInfo"); if(old) old.remove();
+        const hora=new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+        let label=[who, name].filter(Boolean).join(": ");
+        if(dni) label += (label?" ":"") + "(DNI "+dni+")";
+        const info=document.createElement("div");
+        info.className="recvInfo";
+        info.textContent=`✓ ${hora}${label? " · Recibió "+label : ""}`;
+        div.querySelector(".info").appendChild(info);
+        if(currentTrip && currentTrip.stops[i-1]){
+          currentTrip.stops[i-1].done=true;
+          currentTrip.stops[i-1].t=new Date().toISOString();
+          currentTrip.stops[i-1].r={w:who||"", n:name||"", d:dni||""};
+          saveTrip();
+        }
+        resyncETAs(); updateCounter(); refreshLive();
       };
-      div.addEventListener("click", markDone);
-      div.querySelector(".okbtn").addEventListener("click", ev=>{ ev.preventDefault(); ev.stopPropagation(); markDone(); });
+
+      const undoDone = ()=>{
+        div.classList.remove("done");
+        div.querySelector(".okbtn").textContent="✓ Entregado";
+        const old=div.querySelector(".recvInfo"); if(old) old.remove();
+        if(currentTrip && currentTrip.stops[i-1]){
+          currentTrip.stops[i-1].done=false;
+          currentTrip.stops[i-1].t=null;
+          currentTrip.stops[i-1].r=null;
+          saveTrip();
+        }
+        resyncETAs(); updateCounter(); refreshLive();
+      };
+
+      const toggleFlow = ()=>{
+        if(div.classList.contains("done")) undoDone();
+        else rf.style.display = rf.style.display==="none" ? "block" : "none";
+      };
+
+      div.addEventListener("click", toggleFlow);
+      div.querySelector(".okbtn").addEventListener("click", ev=>{ ev.preventDefault(); ev.stopPropagation(); toggleFlow(); });
+      rf.addEventListener("click", ev=>{
+        ev.stopPropagation();
+        const b=ev.target.closest("button"); if(!b) return;
+        finishDone(b.dataset.w, rf.querySelector(".recvName").value.trim(), rf.querySelector(".recvDni").value.trim());
+      });
+      rf.querySelector(".recvName").addEventListener("click", ev=>ev.stopPropagation());
+      rf.querySelector(".recvDni").addEventListener("click", ev=>ev.stopPropagation());
       div.querySelector(".nav:not(.okbtn):not(.wa)").addEventListener("click", ev=>ev.stopPropagation());
       div.querySelector(".wa").addEventListener("click", ev=>{
         ev.preventDefault(); ev.stopPropagation();
@@ -1016,10 +1119,67 @@ function refreshLive(){
 function stopLive(){
   if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
   if(userMarker){ map.removeLayer(userMarker); userMarker=null; }
-  userPos=null; notified=-1;
+  userPos=null; notified=-1; lastFix=null;
+  if(currentTrip) saveTrip();
   $("liveBar").style.display="none";
   $("btnLive").textContent="▶ Iniciar modo reparto";
 }
+
+/* ─────────── historial ─────────── */
+let currentTrip=null, liveKm=0, lastFix=null, lastSaveT=0;
+const HKEY="rdd_history_v1";
+
+function loadHist(){
+  try{ return JSON.parse(localStorage.getItem(HKEY)||"[]"); }catch(e){ return []; }
+}
+function saveTrip(){
+  if(!currentTrip) return;
+  try{
+    const h = loadHist().filter(t=>t.id!==currentTrip.id);
+    h.unshift(currentTrip);
+    localStorage.setItem(HKEY, JSON.stringify(h.slice(0,60)));
+  }catch(e){}
+}
+
+function renderHist(){
+  const h = loadHist();
+  let km=0, ent=0;
+  h.forEach(t=>{
+    km += (t.gpsKm>0.3 ? t.gpsKm : t.plannedKm)||0;
+    ent += t.stops.filter(s=>s.done).length;
+  });
+  $("hKm").textContent = km.toFixed(1).replace(".",",");
+  $("hEnt").textContent = ent;
+  $("hRut").textContent = h.length;
+
+  const L=$("histList"); L.innerHTML="";
+  if(!h.length){ L.innerHTML='<div class="hint">Todavía no hay repartos guardados. Se registran solos al calcular una ruta.</div>'; return; }
+  h.forEach(t=>{
+    const d=new Date(t.date);
+    const fecha=d.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short"})+" "+d.toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+    const done=t.stops.filter(s=>s.done).length;
+    const kmT=(t.gpsKm>0.3? t.gpsKm.toFixed(1)+" km" : (t.plannedKm||0).toFixed(1)+" km (plan)").replace(".",",");
+    const det=document.createElement("details"); det.className="ht";
+    det.innerHTML=`<summary><span><b>${fecha}</b> · ${t.veh||""}</span><span class="hkm">${done}/${t.stops.length} · ${kmT}</span></summary>`+
+      t.stops.map(s=>{
+        const hora=s.t? new Date(s.t).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}) : "";
+        const recv=s.r && (s.r.w||s.r.n||s.r.d) ? " · Recibió "+[s.r.w,s.r.n].filter(Boolean).join(": ")+(s.r.d?" (DNI "+s.r.d+")":"") : "";
+        return `<div class="hstop ${s.done?"hdone":""}">${s.done?"✓":"○"} ${s.a.replace(/</g,"&lt;")}${hora?" · "+hora:""}${recv.replace(/</g,"&lt;")}</div>`;
+      }).join("");
+    L.appendChild(det);
+  });
+}
+
+$("btnHist").addEventListener("click", ()=>{
+  const c=$("histCard");
+  if(c.style.display==="none"){ renderHist(); c.style.display="block"; c.scrollIntoView({behavior:"smooth"}); }
+  else c.style.display="none";
+});
+$("btnHistClear").addEventListener("click", ()=>{
+  if(confirm("¿Borrar todo el historial de este teléfono? No se puede deshacer.")){
+    localStorage.removeItem(HKEY); currentTrip=null; renderHist();
+  }
+});
 
 $("btnLive").addEventListener("click", ()=>{
   if(watchId!==null){ stopLive(); return; }
@@ -1032,7 +1192,20 @@ $("btnLive").addEventListener("click", ()=>{
   let firstFix=true;
 
   watchId = navigator.geolocation.watchPosition(pos=>{
-    userPos = {lat:pos.coords.latitude, lon:pos.coords.longitude};
+    const np = {lat:pos.coords.latitude, lon:pos.coords.longitude};
+    // acumular km reales (filtrando saltos de GPS)
+    if(lastFix){
+      const d = hav(lastFix, np);
+      if(d>5 && d<800){
+        liveKm += d;
+        if(currentTrip){
+          currentTrip.gpsKm = +(liveKm/1000).toFixed(2);
+          if(Date.now()-lastSaveT > 20000){ saveTrip(); lastSaveT = Date.now(); }
+        }
+      }
+    }
+    lastFix = np;
+    userPos = np;
     const ll=[userPos.lat,userPos.lon];
     if(!userMarker){
       userMarker = L.marker(ll,{
