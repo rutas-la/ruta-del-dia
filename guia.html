@@ -22,6 +22,7 @@
   b.k{background:#fff6dc;border:1px solid #f0d98a;border-radius:6px;padding:1px 7px;font-size:13px;white-space:nowrap}
   .tip{background:#f3faf7;border:1.5px solid #cde8dd;border-radius:10px;padding:10px 14px;font-size:13.5px;margin-top:10px}
   .aviso{background:#fdf6ec;border:1.5px solid #f0d9b0;border-radius:10px;padding:10px 14px;font-size:13.5px}
+  .wsp{background:#dcf8c6;border:1px solid #b8e0a0;border-radius:12px 12px 12px 3px;padding:10px 13px;font-size:13px;color:#1f2c1a;margin-top:8px}
 </style>
 </head>
 <body>
@@ -44,80 +45,102 @@
 <div class="card">
   <h2><span class="n">2</span> Punto de partida</h2>
   <p>Tocá <b class="k">📍 Usar mi ubicación actual</b> (dale permiso de ubicación) y aparece
-  tu dirección — o escribila a mano si salís desde otro lado, por ejemplo el depósito.</p>
+  tu dirección real — o escribila a mano si salís desde otro lado, por ejemplo el depósito o el local.</p>
 </div>
 
 <div class="card">
   <h2><span class="n">3</span> Cargar las direcciones del día</h2>
-  <p><b>Escribiendo:</b> una dirección por línea. Cuanto más completa, mejor:
-  calle + altura + barrio (ej: <i>Humboldt 450, Palermo</i>).</p>
-  <p><b>Por voz (recomendado):</b> tocá el micrófono <b class="k">🎤</b> y dictá natural:</p>
+  <p><b>Escribiendo:</b> una dirección por línea, con el patrón calle + altura + barrio
+  (ej: <i>Humboldt 450, Palermo</i>). Si sabés el teléfono del destinatario, agregalo al final
+  con una barra: <i>Humboldt 450, Palermo | 11 2233-4455</i>.</p>
+  <p><b>Por voz (recomendado):</b> tocá el micrófono <b class="k">🎤</b> y dictá natural, de corrido o con pausas:</p>
   <ul>
-    <li>Decí la dirección completa: <i>"Avenida Cabildo dos mil cuarenta, Belgrano"</i></li>
-    <li>Si tenés el teléfono del destinatario, seguí con la palabra
-    <b class="k">teléfono</b> y el número: <i>"...teléfono once veintitrés noventa y nueve..."</i></li>
-    <li>Hacé una pausa y la línea se agrega sola. Dictá la siguiente.</li>
-    <li>Comandos útiles: <b class="k">borrar</b> (elimina lo último),
-    <b class="k">siguiente</b> (cierra la dirección ya), <b class="k">listo</b> (apaga el micrófono).</li>
+    <li>La dirección: <i>"Avenida Cabildo dos mil cuarenta, Belgrano"</i></li>
+    <li>Si tenés el teléfono, seguí con la palabra <b class="k">teléfono</b> (o "celular") y el
+    número: <i>"...teléfono once veintidós treinta y tres..."</i>. Podés dictarlo en grupos,
+    con calma — la app espera.</li>
+    <li>Pausá un momento y la línea se agrega sola, con el 📲 al lado. Dictá la siguiente.</li>
+    <li>Comandos: <b class="k">borrar</b> (elimina lo último), <b class="k">siguiente</b>
+    (cierra la dirección ya), <b class="k">listo</b> (apaga el micrófono).</li>
   </ul>
-  <p>Elegí tu <b>vehículo</b> (moto/auto/camioneta) y si volvés al punto de partida al final.</p>
+  <p>Elegí tu <b>vehículo</b> (moto/auto/camioneta), si <b>volvés al punto de partida</b>, y tu
+  <b>navegador preferido</b> para el botón "Ir ➜": Google Maps o Waze. Todo queda guardado para
+  la próxima.</p>
+  <div class="tip">🏍️ <b>Si repartís en moto</b>: en Google Maps tocá el ícono de la moto la
+  primera vez que navegues (lo recuerda), o elegí Waze y configurá "moto" en sus ajustes una
+  sola vez.</div>
 </div>
 
 <div class="card">
-  <h2><span class="n">4</span> Verificar antes de salir</h2>
-  <p>Tocá <b class="k">Calcular ruta óptima</b>. La app ubica cada dirección (tarda ~1 segundo
-  por dirección) y te muestra la pantalla de verificación:</p>
+  <h2><span class="n">4</span> Tu marca y el mensaje al cliente</h2>
+  <p>Poné el <b>nombre de tu empresa o tienda</b> y elegí qué entregás (pedido, entrega, compra…).
+  El mensaje de WhatsApp que recibe el cliente se arma con tu marca:</p>
+  <div class="wsp">¡Hola! Te saluda Florería Marita 🚚. Tu pedido está en camino a Humboldt 450.
+  Llegada estimada: entre las 10:20 y las 10:45 hs. ¡Cualquier cosa me respondés por acá!</div>
+  <p style="margin-top:10px">¿Querés otro texto? <b>Editá el mensaje completo</b> en el cuadro —
+  las palabras entre llaves se reemplazan solas en cada parada: <b class="k">{direccion}</b>,
+  <b class="k">{desde}</b>, <b class="k">{hasta}</b>, <b class="k">{tienda}</b>. La vista previa
+  te muestra cómo queda, y "Restaurar" vuelve al mensaje original. Se configura una sola vez.</p>
+</div>
+
+<div class="card">
+  <h2><span class="n">5</span> Verificar antes de salir</h2>
+  <p>Tocá <b class="k">Calcular ruta óptima</b>. La app ubica cada dirección (~1 segundo por
+  dirección) y te muestra la pantalla de verificación:</p>
   <ul>
-    <li>Debajo de cada dirección, en gris, aparece <b>el lugar exacto que encontró</b>. Miralo: es tu seguro contra ir a cualquier lado.</li>
-    <li>¿Encontró mal o no encontró? Tocá <b class="k">✏️</b> o el campo rojo, corregí y buscá de nuevo con <b class="k">🔎</b>. Con <b class="k">✗</b> la sacás.</li>
-    <li>Acá podés cargar o completar el <b>📲 teléfono</b> de cada destinatario, tal como viene
-    en la etiqueta (con 0, 15 o guiones da igual — se convierte solo). Si el número viene sin
-    código de área, se usa el del campo de arriba (11 por defecto).</li>
+    <li>Debajo de cada dirección, en gris, está <b>el lugar exacto que encontró</b>. Miralo:
+    es tu seguro contra ir a cualquier lado.</li>
+    <li>¿Mal ubicada o no encontrada? Tocá <b class="k">✏️</b> o el campo rojo, corregí y buscá
+    de nuevo con <b class="k">🔎</b>. Con <b class="k">✗</b> la sacás del reparto.</li>
+    <li>Completá los <b>📲 teléfonos</b> que falten, tal como vienen en la etiqueta (con 0, 15 o
+    guiones da igual). Si el número viene sin código de área, se usa el del campo de arriba
+    (11 por defecto — cambialo si trabajás en otra zona).</li>
   </ul>
   <p>Tocá <b class="k">✓ Todo bien, calcular ruta</b>.</p>
 </div>
 
 <div class="card">
-  <h2><span class="n">5</span> Tu ruta del día</h2>
-  <p>Vas a ver el mapa con las paradas numeradas en el orden óptimo, la distancia y el tiempo
-  total, y la lista de paradas con su <b>ventana de llegada</b> (ej: "entre las 10:20 y las 10:45").
-  Cada parada tiene tres botones:</p>
+  <h2><span class="n">6</span> Tu ruta del día</h2>
+  <p>Mapa con paradas numeradas en orden óptimo, distancia y tiempo total, y cada parada con su
+  <b>ventana de llegada</b> ("entre las 10:20 y las 10:45") y su teléfono en verde si lo cargaste.
+  Tres botones por parada:</p>
   <ul>
     <li><b class="k">✓ Entregado</b> — al entregar. Se abre un panel para registrar quién recibió
-    (Titular / Familiar / Portería / Vecino), con nombre y DNI opcionales. Un toque y sigue.
+    (Titular / Familiar / Portería / Vecino), con nombre y DNI opcionales. Un toque y seguís.
     Los horarios de las paradas restantes <b>se recalculan solos</b>.</li>
-    <li><b class="k">Ir ➜</b> — abre Google Maps navegando a esa parada.</li>
-    <li><b class="k">📲 Avisar</b> — abre WhatsApp con el mensaje listo: "Tu paquete llega entre
-    las 10:20 y las 10:45". Si cargaste el teléfono, abre directo el chat de ese destinatario.</li>
+    <li><b class="k">Ir ➜</b> — navega a esa parada con tu app elegida (Google Maps o Waze).</li>
+    <li><b class="k">📲 Avisar</b> — abre WhatsApp con tu mensaje personalizado listo. Si cargaste
+    el teléfono, abre <b>directo el chat de ese cliente</b>, sin agendarlo.</li>
   </ul>
   <p>Abajo están los <b>tramos de Google Maps</b> para navegar la ruta completa por partes.</p>
 </div>
 
 <div class="card">
-  <h2><span class="n">6</span> Modo reparto (mientras estás en la calle)</h2>
+  <h2><span class="n">7</span> Modo reparto (en la calle)</h2>
   <p>Tocá <b class="k">▶ Iniciar modo reparto</b>: aparece tu punto azul en el mapa y una barra
-  que siempre muestra la próxima parada pendiente y cuántos metros faltan. Cuando estás llegando
-  (menos de ~120 m), <b>el teléfono vibra</b> y la parada se resalta. Además va midiendo los
-  kilómetros reales que recorrés.</p>
+  fija con la próxima parada pendiente y los metros que faltan. Cuando estás llegando (menos de
+  ~120 m), <b>el teléfono vibra</b> y la parada se resalta. Además mide los kilómetros reales
+  que recorrés.</p>
 </div>
 
 <div class="card">
-  <h2><span class="n">7</span> Historial</h2>
+  <h2><span class="n">8</span> Historial</h2>
   <p>El botón <b class="k">🕘</b> (arriba a la derecha) guarda todos tus repartos: fecha, entregas
-  realizadas con hora y quién recibió, y km recorridos. Todo queda <b>solo en tu teléfono</b> —
-  nada se sube a ningún servidor.</p>
+  con hora y quién recibió (con DNI si lo registraste), y km recorridos por GPS. Todo queda
+  <b>solo en tu teléfono</b> — nada se sube a ningún servidor.</p>
 </div>
 
 <div class="card">
   <h2>⚠ Para los testers: cómo reportar problemas</h2>
   <div class="aviso">Si algo funciona mal o raro: <b>1)</b> sacá una captura de pantalla,
   <b>2)</b> anotá qué estabas haciendo y qué esperabas que pase, <b>3)</b> fijate qué versión
-  dice el encabezado de la app (v19, v20...) y <b>4)</b> mandale todo a Miguel. Los reportes con
+  dice el encabezado de la app (v22, v23...) y <b>4)</b> mandale todo a Miguel. Los reportes con
   captura + versión se arreglan 10 veces más rápido.</div>
-  <div class="tip">💡 <b>La app se actualiza sola</b>: cuando haya una versión nueva, cerrala del
-  todo y abrila dos veces. El número de versión del encabezado te dice cuál tenés.</div>
+  <div class="tip">💡 <b>La app se actualiza sola</b>: cuando haya versión nueva, cerrala del todo
+  y abrila dos veces. Si el número del encabezado no cambia: Chrome → ⋮ → Configuración →
+  Privacidad → Borrar datos de navegación → solo "Imágenes y archivos en caché" → reabrir.</div>
   <div class="tip">💡 <b>Consejos de dictado</b>: hablá normal, con el patrón calle + altura +
-  barrio. El barrio ayuda muchísimo a que no confunda calles repetidas entre Capital y provincia.</div>
+  barrio. El barrio evita que confunda calles repetidas entre Capital y provincia.</div>
 </div>
 
 </body>
