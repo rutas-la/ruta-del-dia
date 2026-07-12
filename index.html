@@ -233,7 +233,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v16</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v17</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -465,6 +465,12 @@ function commitBuf(){
     line = tail[1].trim();
     const dg = (tail[2]||"").replace(/\D/g,"");
     if(dg && !phoneBuf) phoneBuf = dg;
+  }
+  // alturas dictadas en grupos: "Cabildo 20 40" → "Cabildo 2040" (solo si el total es una altura razonable)
+  for(let k=0;k<3;k++){
+    const antes=line;
+    line = line.replace(/\b(\d{1,2})\s+(\d{2,3})\b/g, (mm,a,b)=> (a+b).length<=4 ? a+b : mm);
+    if(line===antes) break;
   }
   if(line && phoneBuf) line += " | " + phoneBuf;
   buf = ""; phoneBuf = ""; phoneMode = false;
