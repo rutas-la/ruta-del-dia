@@ -236,7 +236,7 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v24</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v25</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
@@ -273,9 +273,9 @@ Av. Rivadavia 6900, Flores
 Defensa 800, San Telmo | +5491133445566"></textarea>
     <div class="micRow">
       <button id="btnMic" title="Dictar direcciones por voz">🎤</button>
-      <div id="micStatus">Dictá la dirección; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"listo"</b> para terminar.</div>
+      <div id="micStatus">Dictá la dirección completa; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"siguiente"</b> para pasar a la próxima, o <b>"listo"</b> para terminar.</div>
     </div>
-    <div class="hint">Una dirección por línea. El teléfono del destinatario va al lado, separado por <b>|</b> (ej: Humboldt 450 | 2233-4455) — dictándolo con la palabra "teléfono" se agrega solo. También podés cargarlos en el paso de verificación.</div>
+    <div class="hint">Una dirección por línea. Por voz: dictá tranquilo, con las pausas que necesites — la línea <b>solo cambia cuando decís "siguiente"</b> (o "listo" al terminar). El teléfono va al lado separado por <b>|</b> (ej: Humboldt 450 | 2233-4455), o dictándolo con la palabra "teléfono".</div>
 
     <div class="row">
       <div>
@@ -512,19 +512,16 @@ function stopMic(){
   if(rec) try{ rec.onend=null; rec.stop(); }catch(e){}
   $("btnMic").classList.remove("listening");
   $("btnMic").textContent = "🎤";
-  $("micStatus").innerHTML = 'Dictá la dirección; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"listo"</b> para terminar.';
+  $("micStatus").innerHTML = 'Dictá la dirección completa; si tenés el teléfono, decí <b>"teléfono"</b> y el número. Decí <b>"siguiente"</b> para pasar a la próxima, o <b>"listo"</b> para terminar.';
 }
 
-/* — armado de dirección por fragmentos — */
-let buf = "", phoneBuf = "", phoneMode = false, bufTimer = null;
-const hasDigit = s => /\d/.test(s);
-const streetStart = s => /^(av|avenida|calle|pasaje|pje|diagonal|diag|boulevard|bv|bvd|ruta|camino|autopista)\b/i.test(s.replace(/\./g,""));
+/* — armado de dirección por fragmentos: cierre 100% manual, solo por comando — */
+let buf = "", phoneBuf = "", phoneMode = false;
 
 const TELKEY = /(?:tel[eé]fono|celular|cel|whatsapp|wasap)/i;
 const NEXTKEY = /siguiente/i;
 
 function commitBuf(){
-  if(bufTimer){ clearTimeout(bufTimer); bufTimer=null; }
   let line = buf.replace(/\s{2,}/g," ").trim();
   // red de seguridad: si quedó "teléfono + número" pegado a la dirección, separarlo acá
   const tail = line.match(new RegExp("^(.*?)[\\s,]*\\b"+TELKEY.source+"\\b[:.,]?\\s*([\\d\\s\\-.]*)$","i"));
@@ -542,31 +539,21 @@ function commitBuf(){
   if(line && phoneBuf) line += " | " + phoneBuf;
   buf = ""; phoneBuf = ""; phoneMode = false;
   if(line.length > 3 && appendAddress(line))
-    $("micStatus").innerHTML = `✓ Agregada: <b>${line.replace(/</g,"&lt;")}</b> — dictá la siguiente o decí "listo".`;
-}
-
-function scheduleCommit(){
-  if(bufTimer) clearTimeout(bufTimer);
-  const espera = phoneMode ? 9000 : 4000;   // dictando teléfono: más tiempo entre grupos de números
-  if(hasDigit(buf)) bufTimer = setTimeout(commitBuf, espera);
+    $("micStatus").innerHTML = `✓ Agregada: <b>${line.replace(/</g,"&lt;")}</b> — decí "siguiente" para la próxima o "listo" para terminar.`;
 }
 
 function showBuf(){
   const t = buf + (phoneBuf ? " 📲 " + phoneBuf : (phoneMode ? " 📲 …" : ""));
-  if(t.trim()) $("micStatus").innerHTML = `🎙 Armando: <b>${t.replace(/</g,"&lt;")}</b>…`;
+  if(t.trim()) $("micStatus").innerHTML = `🎙 Armando: <b>${t.replace(/</g,"&lt;")}</b>… (decí "siguiente" cuando termines)`;
 }
 
-// fusión normal de fragmentos de dirección
+// fusión de fragmentos: solo concatena, nunca cierra sola
 function addrMerge(part){
-  if(buf === "") buf = part;
-  else if(/^\d/.test(part)) buf += " " + part;
-  else if(!hasDigit(buf)) buf += " " + part;
-  else if(!hasDigit(part) && part.split(" ").length<=3 && !streetStart(part)) buf += " " + part;
-  else { commitBuf(); buf = part; }
+  buf = buf ? buf + " " + part : part;
 }
 
 function feedFragment(clean){
-  // "siguiente" en cualquier parte del fragmento: cierra la dirección actual y sigue con lo que venga después
+  // "siguiente" en cualquier parte del fragmento: ÚNICO disparador que cierra la dirección actual
   const nx = clean.match(new RegExp("^(.*?)(?:^|[\\s,])"+NEXTKEY.source+"\\b[:.,]?\\s*(.*)$","i"));
   if(nx){
     const before=(nx[1]||"").trim();
@@ -581,7 +568,7 @@ function feedFragment(clean){
     return;
   }
 
-  // la palabra clave puede venir EN CUALQUIER PARTE del fragmento
+  // la palabra clave de teléfono puede venir en cualquier parte del fragmento
   const m = clean.match(new RegExp("^(.*?)(?:^|[\\s,])"+TELKEY.source+"\\b[:.,]?\\s*(.*)$","i"));
   if(m){
     const before=(m[1]||"").trim();
@@ -590,19 +577,17 @@ function feedFragment(clean){
       phoneMode = true;
       const digits = (m[2]||"").replace(/\D/g,"");
       if(digits) phoneBuf += digits;
-      scheduleCommit(); showBuf(); return;
+      showBuf(); return;
     }
   }
-  // en modo teléfono, los fragmentos numéricos se suman al número
+  // en modo teléfono: los fragmentos se suman al número, sin cerrar nunca sola la línea
   if(phoneMode){
     const digits = clean.replace(/\D/g,"");
-    const soloNumeros = clean.replace(/[\d\s\-.,]/g,"") === "";
-    if(digits && soloNumeros){ phoneBuf += digits; scheduleCommit(); showBuf(); return; }
-    // llegó texto: es la próxima dirección → cerrar la actual
-    commitBuf(); buf = clean; scheduleCommit(); showBuf(); return;
+    if(digits) phoneBuf += digits;
+    showBuf(); return;
   }
   addrMerge(clean);
-  scheduleCommit(); showBuf();
+  showBuf();
 }
 
 function startSession(){
@@ -628,7 +613,7 @@ function startSession(){
     const low = clean.toLowerCase();
     if(/^(listo|terminar|terminé|basta|parar)\.?$/.test(low)){ stopMic(); return; }
     if(/^(borrar|borrá)( la)?( última)?\.?$/.test(low)){
-      if(buf || phoneBuf){ buf=""; phoneBuf=""; phoneMode=false; if(bufTimer){clearTimeout(bufTimer);bufTimer=null;} }
+      if(buf || phoneBuf){ buf=""; phoneBuf=""; phoneMode=false; }
       else { const ta=$("addrs"); const ls=ta.value.split("\n"); ls.pop(); ta.value=ls.join("\n"); lastHeard=""; }
       $("micStatus").innerHTML = '<b>Borrado.</b> Seguí dictando…';
       return;
