@@ -49,6 +49,9 @@
 
   .hstats{display:flex;gap:10px;margin-bottom:12px}
   .hstat{flex:1;background:#fafbfc;border:1.5px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .hstat.hodo{background:#14181d;border-color:#14181d}
+  .hstat.hodo .v{color:var(--route)}
+  .hstat.hodo .k{color:#cbd2d9}
   .hstat .v{font-size:18px;font-weight:800;font-family:var(--mono)}
   .hstat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
   details.ht{border-bottom:1px dashed var(--line);padding:10px 2px}
@@ -233,14 +236,20 @@
     <div class="logo">↯</div>
     <div style="flex:1">
       <h1>Ruta del Día</h1>
-      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v23</b></p>
+      <p>Optimizador de entregas · orden inteligente de paradas · <b id="appVer">v24</b></p>
     </div>
     <button id="btnHist" title="Historial">🕘</button>
   </header>
 
   <!-- ══════════ HISTORIAL ══════════ -->
   <div class="card" id="histCard" style="display:none">
-    <h2>Historial de repartos</h2>
+    <h2>Kilómetros recorridos</h2>
+    <div class="hstats">
+      <div class="hstat hodo"><div class="v" id="hKmHoy">0</div><div class="k">hoy</div></div>
+      <div class="hstat hodo"><div class="v" id="hKmSem">0</div><div class="k">esta semana</div></div>
+      <div class="hstat hodo"><div class="v" id="hKmMes">0</div><div class="k">este mes</div></div>
+    </div>
+    <h2 style="margin-top:6px">Historial de repartos</h2>
     <div class="hstats">
       <div class="hstat"><div class="v" id="hKm">0</div><div class="k">km totales</div></div>
       <div class="hstat"><div class="v" id="hEnt">0</div><div class="k">entregas</div></div>
@@ -248,7 +257,7 @@
     </div>
     <div id="histList"></div>
     <button class="btn btn-ghost" id="btnHistClear" style="margin-top:12px">🗑 Borrar historial</button>
-    <div class="hint">Los km se miden por GPS durante el modo reparto (si no lo usaste, se guarda el km planificado). Todo queda solo en este teléfono.</div>
+    <div class="hint">Los km se miden por GPS durante el modo reparto (si no lo usaste, se guarda el km planificado). La semana va de lunes a domingo. Todo queda solo en este teléfono.</div>
   </div>
 
   <!-- ══════════ ENTRADA ══════════ -->
@@ -512,6 +521,7 @@ const hasDigit = s => /\d/.test(s);
 const streetStart = s => /^(av|avenida|calle|pasaje|pje|diagonal|diag|boulevard|bv|bvd|ruta|camino|autopista)\b/i.test(s.replace(/\./g,""));
 
 const TELKEY = /(?:tel[eé]fono|celular|cel|whatsapp|wasap)/i;
+const NEXTKEY = /siguiente/i;
 
 function commitBuf(){
   if(bufTimer){ clearTimeout(bufTimer); bufTimer=null; }
@@ -556,6 +566,21 @@ function addrMerge(part){
 }
 
 function feedFragment(clean){
+  // "siguiente" en cualquier parte del fragmento: cierra la dirección actual y sigue con lo que venga después
+  const nx = clean.match(new RegExp("^(.*?)(?:^|[\\s,])"+NEXTKEY.source+"\\b[:.,]?\\s*(.*)$","i"));
+  if(nx){
+    const before=(nx[1]||"").trim();
+    const after=(nx[2]||"").trim();
+    if(before){
+      if(phoneMode){ const d=before.replace(/\D/g,""); if(d) phoneBuf+=d; }
+      else addrMerge(before);
+    }
+    commitBuf();
+    if(after) feedFragment(after);
+    else $("micStatus").innerHTML = 'Dictá la siguiente dirección…';
+    return;
+  }
+
   // la palabra clave puede venir EN CUALQUIER PARTE del fragmento
   const m = clean.match(new RegExp("^(.*?)(?:^|[\\s,])"+TELKEY.source+"\\b[:.,]?\\s*(.*)$","i"));
   if(m){
@@ -1238,14 +1263,30 @@ function saveTrip(){
   }catch(e){}
 }
 
+function tripKm(t){ return (t.gpsKm>0.3 ? t.gpsKm : t.plannedKm)||0; }
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function startOfWeek(d){ const x=startOfDay(d); const dow=(x.getDay()+6)%7; x.setDate(x.getDate()-dow); return x; } // lunes
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+
 function renderHist(){
   const h = loadHist();
   let km=0, ent=0;
+  const now=new Date(), sod=startOfDay(now), sow=startOfWeek(now), som=startOfMonth(now);
+  let kmHoy=0, kmSem=0, kmMes=0;
   h.forEach(t=>{
-    km += (t.gpsKm>0.3 ? t.gpsKm : t.plannedKm)||0;
+    const kt=tripKm(t);
+    km += kt;
     ent += t.stops.filter(s=>s.done).length;
+    const d=new Date(t.date);
+    if(d>=sod) kmHoy+=kt;
+    if(d>=sow) kmSem+=kt;
+    if(d>=som) kmMes+=kt;
   });
-  $("hKm").textContent = km.toFixed(1).replace(".",",");
+  const f=n=>n.toFixed(1).replace(".",",");
+  $("hKmHoy").textContent = f(kmHoy);
+  $("hKmSem").textContent = f(kmSem);
+  $("hKmMes").textContent = f(kmMes);
+  $("hKm").textContent = f(km);
   $("hEnt").textContent = ent;
   $("hRut").textContent = h.length;
 
