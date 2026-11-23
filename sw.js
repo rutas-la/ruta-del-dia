@@ -1,8 +1,11 @@
-const CACHE = "ruta-del-dia-v26";
+const CACHE = "ruta-del-dia-v27";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
+  // cache:"reload" evita guardar copias viejas de la caché HTTP del navegador
+  e.waitUntil(caches.open(CACHE).then(c =>
+    Promise.all(SHELL.map(u => fetch(new Request(u, {cache: "reload"})).then(r => c.put(u, r))))
+  ));
   self.skipWaiting();
 });
 
@@ -15,19 +18,15 @@ self.addEventListener("activate", e => {
   self.clients.claim();
 });
 
+// Red primero (siempre la versión más nueva); si no hay internet, usa la copia guardada.
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
-  // Solo cacheamos el shell propio; las APIs (Nominatim, OSRM, tiles) siempre van a la red.
-  if (url.origin === self.location.origin) {
-    e.respondWith(
-      caches.match(e.request).then(hit =>
-        hit ||
-        fetch(e.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
-          return res;
-        })
-      )
-    );
-  }
+  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
+  e.respondWith(
+    fetch(e.request, {cache: "no-cache"}).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy));
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
 });
